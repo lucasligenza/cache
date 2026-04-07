@@ -1,0 +1,94 @@
+.note-card {
+  background: var(--surface);
+  border: 1px solid #252525;
+  border-radius: 3px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: border-color 0.12s, box-shadow 0.12s, transform 0.25s, opacity 0.25s;
+  animation: card-enter 0.22s ease both;
+}
+
+.note-card:hover {
+  border-color: rgba(57, 255, 20, 0.18);
+  box-shadow: 0 0 12px rgba(57, 255, 20, 0.06);
+}
+
+.note-card--stale {
+  border-left: 2px solid rgba(255, 68, 68, 0.5);
+}
+
+.note-card--exiting {
+  transform: translateX(-120%);
+  opacity: 0;
+}
+
+.note-card__text {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.55;
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.note-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.note-card__time {
+  color: var(--text-dim);
+  font-size: 10px;
+}
+
+.note-card__chip {
+  font-size: 10px;
+  padding: 1px 8px;
+  border-radius: 2px;
+  border: 1px solid;
+  cursor: pointer;
+  font-family: var(--font);
+  background: none;
+  transition: opacity 0.1s;
+  line-height: 18px;
+}
+
+.note-card__chip:hover {
+  opacity: 0.75;
+}
+
+.note-card__ai-btn {
+  margin-left: auto;
+  color: var(--text-dim);
+  font-size: 10px;
+  cursor: pointer;
+  border: 1px solid #222;
+  padding: 1px 8px;
+  border-radius: 2px;
+  background: none;
+  font-family: var(--font);
+  transition: color 0.1s, border-color 0.1s;
+  line-height: 18px;
+}
+
+.note-card__ai-btn:hover {
+  color: #BF5FFF;
+  border-color: rgba(191, 95, 255, 0.3);
+}
+
+.note-card__ai-btn--loading {
+  color: #BF5FFF;
+  border-color: rgba(191, 95, 255, 0.3);
+  animation: pulse 1s step-end infinite;
+}
+
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  50% { opacity: 0.5; }
+}
