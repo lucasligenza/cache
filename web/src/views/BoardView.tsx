@@ -7,7 +7,6 @@ interface Props {
   categories: Category[];
   getNotesByCategory: (id: string) => Note[];
   onUpdateNote: (id: string, updates: Partial<Note>) => void;
-  onArchiveNote: (id: string) => void;
   onDeleteNote: (id: string) => void;
   onCreateCategory: (name: string) => void;
   onRenameCategory: (id: string, name: string) => void;
@@ -15,7 +14,7 @@ interface Props {
 }
 
 export function BoardView({
-  categories, getNotesByCategory, onUpdateNote, onArchiveNote,
+  categories, getNotesByCategory, onUpdateNote,
   onDeleteNote, onCreateCategory, onRenameCategory, onDeleteCategory,
 }: Props) {
   const [activeCatId, setActiveCatId] = useState<string | null>(null);

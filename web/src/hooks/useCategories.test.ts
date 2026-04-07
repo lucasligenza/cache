@@ -23,7 +23,7 @@ describe('useCategories', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(supabase.from).mockImplementation(() =>
-      makeChain({ data: [CAT], error: null }) as ReturnType<typeof supabase.from>
+      makeChain({ data: [CAT], error: null }) as unknown as ReturnType<typeof supabase.from>
     );
   });
 

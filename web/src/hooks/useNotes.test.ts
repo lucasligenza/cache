@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { useNotes } from './useNotes';
 
 // Build a thennable Supabase chain mock
@@ -29,7 +29,7 @@ describe('useNotes', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(supabase.from).mockImplementation(() =>
-      makeChain({ data: [NOTE], error: null }) as ReturnType<typeof supabase.from>
+      makeChain({ data: [NOTE], error: null }) as unknown as ReturnType<typeof supabase.from>
     );
   });
 
@@ -49,7 +49,7 @@ describe('useNotes', () => {
 
   it('getNotesByCategory filters by category', async () => {
     vi.mocked(supabase.from).mockImplementation(() =>
-      makeChain({ data: [{ ...NOTE, category_id: 'cat-1' }], error: null }) as ReturnType<typeof supabase.from>
+      makeChain({ data: [{ ...NOTE, category_id: 'cat-1' }], error: null }) as unknown as ReturnType<typeof supabase.from>
     );
     const { result } = renderHook(() => useNotes());
     await waitFor(() => expect(result.current.loading).toBe(false));

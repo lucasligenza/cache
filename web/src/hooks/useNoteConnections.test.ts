@@ -31,9 +31,9 @@ describe('useNoteConnections', () => {
     };
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'note_connections') {
-        return makeChain({ data: [{ source_note_id: 'n1', target_note_id: 'n2' }], error: null }) as ReturnType<typeof supabase.from>;
+        return makeChain({ data: [{ source_note_id: 'n1', target_note_id: 'n2' }], error: null }) as unknown as ReturnType<typeof supabase.from>;
       }
-      return makeChain({ data: [NOTE], error: null }) as ReturnType<typeof supabase.from>;
+      return makeChain({ data: [NOTE], error: null }) as unknown as ReturnType<typeof supabase.from>;
     });
 
     const { result } = renderHook(() => useNoteConnections());
