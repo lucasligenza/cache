@@ -1,1 +1,51 @@
-/* placeholder — will be replaced in Task 3 */
+:root {
+  --bg: #1a1a1a;
+  --surface: #252525;
+  --surface-hover: #2d2d2d;
+  --border: #333333;
+  --text: #E0E0E0;
+  --text-muted: #666666;
+  --text-dim: #444444;
+  --accent: #39FF14;
+  --accent-glow: #39FF1466;
+  --accent-glow-soft: #39FF1420;
+  --amber: #F5A623;
+  --red: #FF4444;
+  --font: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
