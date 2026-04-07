@@ -1,0 +1,44 @@
+.boot {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 48px;
+  cursor: pointer;
+  z-index: 100;
+}
+
+.boot__line {
+  color: var(--accent);
+  font-size: 14px;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 0;
+  margin-bottom: 6px;
+  animation: type-in var(--duration, 0.8s) steps(var(--steps, 24)) forwards;
+  text-shadow: 0 0 8px var(--accent-glow);
+}
+
+.boot__line--ready {
+  opacity: 0.9;
+}
+
+.boot__cursor {
+  display: inline-block;
+  width: 8px;
+  height: 14px;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  animation: cursor-blink 1s step-end infinite;
+  margin-top: 2px;
+}
+
+@keyframes type-in {
+  to { width: 100%; }
+}
+
+@keyframes cursor-blink {
+  50% { opacity: 0; }
+}
