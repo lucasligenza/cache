@@ -33,6 +33,13 @@ export function StatusBar({ activeView, unsortedCount, onTabClick }: Props) {
 
       <span className="status-bar__spacer" />
       <span className="status-bar__path">~/cache</span>
+      <button
+        className={`status-bar__settings-btn${activeView === 'settings' ? ' status-bar__settings-btn--active' : ''}`}
+        onClick={() => onTabClick('settings')}
+        title="settings"
+      >
+        ⚙
+      </button>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-export type ViewName = 'buffer' | 'board' | 'search';
+export type ViewName = 'buffer' | 'board' | 'search' | 'settings';
 
 export interface Category {
   id: string;

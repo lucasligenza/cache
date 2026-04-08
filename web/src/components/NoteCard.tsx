@@ -1,10 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { formatDistanceToNow, differenceInDays } from 'date-fns';
+import { formatDistanceToNow, differenceInDays, isFuture } from 'date-fns';
 import type { Note, Category } from '../types';
-import { useToast } from './Toast';
 import './NoteCard.css';
-
-const ANTHROPIC_KEY: string | undefined = import.meta.env.VITE_ANTHROPIC_API_KEY;
 
 interface Props {
   note: Note;
@@ -12,12 +9,19 @@ interface Props {
   onAssign: (noteId: string, categoryId: string) => void;
   onDelete: (noteId: string) => void;
   onUpdate?: (noteId: string, updates: Partial<Note>) => void;
+  showCategories?: boolean;
 }
 
-export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () => {} }: Props) {
-  const { showToast } = useToast();
+const PING_PRESETS = [
+  { label: '+1h', ms: 60 * 60 * 1000 },
+  { label: '+3h', ms: 3 * 60 * 60 * 1000 },
+  { label: '+1d', ms: 24 * 60 * 60 * 1000 },
+  { label: '+3d', ms: 3 * 24 * 60 * 60 * 1000 },
+  { label: '+1w', ms: 7 * 24 * 60 * 60 * 1000 },
+];
+
+export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () => {}, showCategories = false }: Props) {
   const [exiting, setExiting] = useState(false);
-  const [aiStatus, setAiStatus] = useState<'idle' | 'loading'>('idle');
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(note.text);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -26,6 +30,14 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
 
   const isStale = differenceInDays(new Date(), new Date(note.created_at)) >= 3;
   const relTime = formatDistanceToNow(new Date(note.created_at), { addSuffix: true });
+
+  const pingDate = note.remind_at ? new Date(note.remind_at) : null;
+  const pingFuture = pingDate ? isFuture(pingDate) : false;
+  const pingLabel = pingDate
+    ? pingFuture
+      ? `ping ${formatDistanceToNow(pingDate, { addSuffix: true })}`
+      : `ping overdue`
+    : null;
 
   useEffect(() => {
     if (editing && textareaRef.current) {
@@ -73,44 +85,12 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
     if (e.key === 'Escape') cancelEdit();
   };
 
-  const handleAutoSort = async () => {
-    if (!ANTHROPIC_KEY) {
-      showToast('warn', 'set VITE_ANTHROPIC_API_KEY in .env to use AI sort');
-      return;
-    }
-    setAiStatus('loading');
-    try {
-      const categoryNames = categories.map(c => c.name).join(', ');
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': ANTHROPIC_KEY,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 20,
-          messages: [{
-            role: 'user',
-            content: `Categorize this note into exactly one of: ${categoryNames}. Note: "${note.text}". Reply with ONLY the category name.`,
-          }],
-        }),
-      });
-      const json = await res.json();
-      const suggested = json.content?.[0]?.text?.trim();
-      const match = categories.find(c => c.name.toLowerCase() === suggested?.toLowerCase());
-      if (match) {
-        handleAssign(match);
-        showToast('ok', `sorted → /${match.name.toLowerCase()}`);
-      } else {
-        showToast('warn', 'AI sort: no matching category found');
-      }
-    } catch {
-      showToast('error', 'AI sort failed — check network');
-    } finally {
-      setAiStatus('idle');
-    }
+  const setPing = (ms: number) => {
+    onUpdate(note.id, { remind_at: new Date(Date.now() + ms).toISOString() });
+  };
+
+  const clearPing = () => {
+    onUpdate(note.id, { remind_at: null });
   };
 
   const cardClasses = [
@@ -134,8 +114,53 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
           rows={2}
         />
         <div className="note-card__meta">
-          <span className="note-card__time">{relTime}</span>
+          {categories.map(cat => (
+            <button
+              key={cat.id}
+              className="note-card__chip"
+              style={{ color: cat.color, borderColor: cat.color + '44' }}
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => handleAssign(cat)}
+            >
+              /{cat.name.toLowerCase()}
+            </button>
+          ))}
+          <button
+            className="note-card__chip"
+            style={{ color: '#FF4444', borderColor: '#FF444433', marginLeft: 'auto' }}
+            onMouseDown={e => e.preventDefault()}
+            onClick={() => setConfirmDelete(true)}
+          >
+            rm
+          </button>
           <span className="note-card__edit-hint">enter ↵ save · esc cancel</span>
+        </div>
+        <div className="note-card__ping-row">
+          <span className="note-card__ping-label">ping:</span>
+          {PING_PRESETS.map(({ label, ms }) => (
+            <button
+              key={label}
+              className="note-card__chip note-card__chip--ping"
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => setPing(ms)}
+            >
+              {label}
+            </button>
+          ))}
+          {note.remind_at && (
+            <button
+              className="note-card__chip note-card__chip--clear"
+              onMouseDown={e => e.preventDefault()}
+              onClick={clearPing}
+            >
+              ×clear
+            </button>
+          )}
+          {pingLabel && (
+            <span className={`note-card__ping-set${!pingFuture ? ' note-card__ping-set--overdue' : ''}`}>
+              {pingLabel}
+            </span>
+          )}
         </div>
       </div>
     );
@@ -173,7 +198,12 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
       </div>
       <div className="note-card__meta">
         <span className="note-card__time">{relTime}</span>
-        {categories.map(cat => (
+        {pingLabel && (
+          <span className={`note-card__ping-badge${!pingFuture ? ' note-card__ping-badge--overdue' : ''}`}>
+            {pingLabel}
+          </span>
+        )}
+        {showCategories && categories.map(cat => (
           <button
             key={cat.id}
             className="note-card__chip"
@@ -183,13 +213,6 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
             /{cat.name.toLowerCase()}
           </button>
         ))}
-        <button
-          className={`note-card__ai-btn${aiStatus === 'loading' ? ' note-card__ai-btn--loading' : ''}`}
-          onClick={handleAutoSort}
-          disabled={aiStatus === 'loading'}
-        >
-          {aiStatus === 'loading' ? 'sorting...' : '⚡ sort'}
-        </button>
         <button
           className="note-card__chip"
           style={{ color: '#FF4444', borderColor: '#FF444433', marginLeft: 'auto' }}

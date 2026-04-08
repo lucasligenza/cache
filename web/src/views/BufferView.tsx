@@ -29,6 +29,7 @@ export function BufferView({ notes, categories, onAssign, onDelete, onUpdate }: 
           onAssign={onAssign}
           onDelete={onDelete}
           onUpdate={onUpdate}
+          showCategories
         />
       ))}
     </div>

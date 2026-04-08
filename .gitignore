@@ -3,3 +3,7 @@ node_modules/
 web/node_modules/
 mobile/node_modules/
 .superpowers/
+.claude/
+web/dist/
+test_output.txt
+supabase/.temp/

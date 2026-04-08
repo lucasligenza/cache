@@ -72,9 +72,6 @@ export function SearchView({ notes, categories, onNavigate }: Props) {
       <div className="search-view__results">
         {!query ? (
           <div className="search-view__empty">
-            <div className="search-view__cursor-line">
-              <span className="search-view__cursor">_</span>
-            </div>
             {recentNotes.map(note => (
               <div key={note.id} className="search-view__recent-item">
                 {note.text}

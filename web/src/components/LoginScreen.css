@@ -1,0 +1,130 @@
+.login-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #1a1a1a;
+  font-family: 'JetBrains Mono', monospace;
+  color: #E0E0E0;
+}
+
+.login-screen__container {
+  width: 100%;
+  max-width: 400px;
+  padding: 0 24px;
+}
+
+.login-screen__header {
+  margin-bottom: 40px;
+}
+
+.login-screen__prompt {
+  font-size: 18px;
+  color: #39FF14;
+  margin: 0 0 4px 0;
+  font-weight: normal;
+}
+
+.login-screen__subtitle {
+  font-size: 12px;
+  color: #666666;
+  margin: 0;
+}
+
+.login-screen__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login-screen__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.login-screen__label {
+  font-size: 11px;
+  color: #666666;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.login-screen__input {
+  background: #252525;
+  border: 1px solid #333333;
+  color: #E0E0E0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.15s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.login-screen__input:focus {
+  border-color: rgba(57, 255, 20, 0.4);
+}
+
+.login-screen__input::placeholder {
+  color: #444444;
+}
+
+.login-screen__submit {
+  margin-top: 8px;
+  background: transparent;
+  border: 1px solid #39FF14;
+  color: #39FF14;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  padding: 10px 16px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.login-screen__submit:hover:not(:disabled) {
+  background: rgba(57, 255, 20, 0.08);
+}
+
+.login-screen__submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.login-screen__submit-prefix {
+  color: #666666;
+}
+
+.login-screen__error {
+  font-size: 12px;
+  color: #FF4444;
+  margin: 0;
+  padding: 8px 0 0 0;
+}
+
+.login-screen__toggle {
+  margin-top: 24px;
+  font-size: 12px;
+  color: #666666;
+}
+
+.login-screen__toggle-btn {
+  background: none;
+  border: none;
+  color: #39FF14;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.login-screen__toggle-btn:hover {
+  color: #7fff5a;
+}
