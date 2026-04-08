@@ -16,6 +16,12 @@ export function LoginScreen({ onSignIn, onSignUp }: LoginScreenProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (mode === 'signup' && password.length < 8) {
+      setError('password must be at least 8 characters');
+      return;
+    }
+
     setSubmitting(true);
 
     const handler = mode === 'login' ? onSignIn : onSignUp;
