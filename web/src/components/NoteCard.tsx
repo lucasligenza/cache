@@ -4,7 +4,7 @@ import type { Note, Category } from '../types';
 import { useToast } from './Toast';
 import './NoteCard.css';
 
-const ANTHROPIC_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY as string;
+const ANTHROPIC_KEY: string | undefined = import.meta.env.VITE_ANTHROPIC_API_KEY;
 
 interface Props {
   note: Note;
@@ -22,6 +22,7 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
   const [editText, setEditText] = useState(note.text);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const cancelledRef = useRef<boolean>(false);
 
   const isStale = differenceInDays(new Date(), new Date(note.created_at)) >= 3;
   const relTime = formatDistanceToNow(new Date(note.created_at), { addSuffix: true });
@@ -33,6 +34,10 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
       textareaRef.current.setSelectionRange(len, len);
     }
   }, [editing]);
+
+  useEffect(() => {
+    if (!editing) setEditText(note.text);
+  }, [note.text, editing]);
 
   const handleAssign = (cat: Category) => {
     setExiting(true);
@@ -53,8 +58,14 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
   };
 
   const cancelEdit = () => {
+    cancelledRef.current = true;
     setEditText(note.text);
     setEditing(false);
+  };
+
+  const handleBlurSave = () => {
+    if (cancelledRef.current) { cancelledRef.current = false; return; }
+    saveEdit();
   };
 
   const handleEditKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -119,7 +130,7 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
           value={editText}
           onChange={e => setEditText(e.target.value)}
           onKeyDown={handleEditKeyDown}
-          onBlur={saveEdit}
+          onBlur={handleBlurSave}
           rows={2}
         />
         <div className="note-card__meta">

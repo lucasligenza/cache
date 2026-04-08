@@ -29,6 +29,7 @@
   line-height: 1.55;
   margin-bottom: 8px;
   word-break: break-word;
+  cursor: text;
 }
 
 .note-card__meta {
@@ -91,10 +92,6 @@
 
 @keyframes pulse {
   50% { opacity: 0.5; }
-}
-
-.note-card__text {
-  cursor: text;
 }
 
 .note-card--editing {

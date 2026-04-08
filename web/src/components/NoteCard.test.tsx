@@ -89,13 +89,16 @@ describe('NoteCard', () => {
 
   it('calls onDelete after confirming rm', () => {
     vi.useFakeTimers();
-    const onDelete = vi.fn();
-    renderCard({ onDelete });
-    fireEvent.click(screen.getByText('rm'));
-    const confirmBtn = screen.getByRole('button', { name: 'rm' });
-    fireEvent.click(confirmBtn);
-    vi.advanceTimersByTime(280);
-    expect(onDelete).toHaveBeenCalledWith('1');
-    vi.useRealTimers();
+    try {
+      const onDelete = vi.fn();
+      renderCard({ onDelete });
+      fireEvent.click(screen.getByText('rm'));
+      const confirmBtn = screen.getByRole('button', { name: 'rm' });
+      fireEvent.click(confirmBtn);
+      vi.advanceTimersByTime(280);
+      expect(onDelete).toHaveBeenCalledWith('1');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
