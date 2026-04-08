@@ -21,7 +21,6 @@ One Supabase project used by both apps. Same schema, same credentials.
 |---|---|
 | `notes` | `id`, `text`, `category_id`, `color`, `remind_at`, `pending_review`, `pinned`, `archived_at`, `created_at`, `updated_at` |
 | `categories` | `id`, `name`, `color`, `created_at` |
-| `note_connections` | `id`, `source_note_id`, `target_note_id`, `created_at` |
 
 Notes with `archived_at IS NULL` are active. Notes with `category_id IS NULL` are unsorted (buffer).
 
@@ -39,8 +38,9 @@ Notes with `archived_at IS NULL` are active. Notes with `category_id IS NULL` ar
 | Backend | Supabase JS client |
 | AI sort | Claude Haiku (`claude-haiku-4-5-20251001`) via Anthropic API (direct from browser) |
 | State | React hooks — no global state library |
-| Routing | None — `activeView` state in `App.tsx` |
+| Routing | None — `activeView` state in `App.tsx` (`'buffer' | 'board' | 'search'`) |
 | Testing | Vitest + @testing-library/react |
+| Deployment | Vercel — `web/vercel.json` rewrites all routes to `index.html` |
 
 ### Commands
 
@@ -81,6 +81,8 @@ Three fixed zones filling the full viewport. No page-level scroll.
 
 ```
 App
+├── ErrorBoundary          ← class component, wraps entire app in main.tsx
+├── ToastProvider          ← context provider, wraps App in main.tsx
 ├── BootSequence           ← typewriter boot, dismissed on complete or click
 ├── DataLoadingScreen      ← shown while Supabase data loads after boot
 └── Shell (app-shell div)
@@ -88,7 +90,7 @@ App
     ├── ContentArea
     │   ├── BufferView     ← unsorted notes inbox
     │   ├── BoardView      ← category grid + drill-down + config panel
-    │   └── GraphView      ← note connections explorer
+    │   └── SearchView     ← live full-text note search (/grep tab)
     └── CaptureBar
 ```
 
@@ -96,28 +98,29 @@ App
 
 ```
 web/src/
-├── types.ts                    # ViewName, Note, Category, NoteConnection
+├── types.ts                    # ViewName ('buffer'|'board'|'search'), Note, Category
 ├── constants.ts                # COLORS, ACCENT_COLORS, DEFAULT_CATEGORIES
 ├── index.css                   # CSS custom properties, reset, scrollbar
 ├── App.css                     # .app-shell / .app-shell__content
-├── App.tsx                     # Root — boot gate, data gate, shell wiring
-├── main.tsx                    # ReactDOM.createRoot
+├── App.tsx                     # Root — boot gate, data gate, shell wiring, toast wiring
+├── main.tsx                    # ReactDOM.createRoot, ErrorBoundary + ToastProvider wrapper
 ├── lib/
 │   └── supabase.ts             # createClient (throws if env vars missing)
 ├── hooks/
-│   ├── useNotes.ts             # CRUD + unsortedNotes + getNotesByCategory
-│   ├── useCategories.ts        # CRUD + seed DEFAULT_CATEGORIES if empty
-│   └── useNoteConnections.ts   # manual fetchConnections, addConnection, removeConnection
+│   ├── useNotes.ts             # CRUD + unsortedNotes + getNotesByCategory + onError callback
+│   └── useCategories.ts        # CRUD + seed DEFAULT_CATEGORIES if empty + onError callback
 ├── components/
 │   ├── BootSequence.tsx/.css   # Typewriter lines, auto-dismisses at 2.2s
 │   ├── DataLoadingScreen.tsx/.css
 │   ├── StatusBar.tsx/.css      # Tab buttons, amber buffer badge
-│   ├── NoteCard.tsx/.css       # Stale border, AI sort, category chips, delete
-│   └── CaptureBar.tsx/.css     # Auto-focused prompt bar, ~/cache $ inline
+│   ├── NoteCard.tsx/.css       # Inline editing, inline delete confirm, AI sort, useToast
+│   ├── CaptureBar.tsx/.css     # Auto-focused prompt bar, ~/cache $ inline
+│   ├── ErrorBoundary.tsx       # Terminal-aesthetic crash fallback screen
+│   └── Toast.tsx/.css          # Toast stack + ToastProvider context
 └── views/
     ├── BufferView.tsx/.css     # Unsorted notes list
-    ├── BoardView.tsx/.css      # Category grid → detail drill-down
-    └── GraphView.tsx/.css      # CSS orbit layout, edge lines
+    ├── BoardView.tsx/.css      # Category grid → detail drill-down, inline category delete confirm
+    └── SearchView.tsx/.css     # Live full-text search, ~/cache $ grep aesthetic
 ```
 
 ### Design Tokens
@@ -143,10 +146,18 @@ CSS custom properties live in `index.css`: `--bg`, `--surface`, `--border`, `--t
 - Active tab: `text-shadow: 0 0 6px #39FF1466`
 - Capture bar focused: top border + upward box-shadow in green
 - Note card hover: `box-shadow: 0 0 12px #39FF1410`
+- Note card in edit mode: `border-color: rgba(57,255,20,0.4)`
 
 **Typewriter** — sequential text reveals:
 - Boot sequence lines animate `width: 0 → 100%` with `steps()`
 - AI sort status types in character by character
+
+### Production Infrastructure
+
+- **`ErrorBoundary`** — React class component wrapping the entire app in `main.tsx`. Shows a terminal-aesthetic crash screen (`~/cache $ FATAL ERROR` + `[reload]` button) instead of a blank page.
+- **`Toast` / `useToast`** — React context notification system. `useToast()` returns `{ showToast(type, message) }`. Types: `error` (red), `ok` (green), `warn` (amber). Auto-dismisses after 4s, stacks up to 3. Replaces all `alert()` and `console.error()` calls.
+- **`NoteCard` editing** — Click note text → green-bordered textarea; Enter or blur saves, Escape cancels. `onUpdate(noteId, { text })` called only when text changes.
+- **Inline confirmations** — NoteCard `rm` and BoardView category delete both use inline confirm state instead of `window.confirm()`.
 
 ### Testing Patterns
 
@@ -162,6 +173,8 @@ function makeChain(result: { data: unknown; error: null }) {
   return chain;
 }
 ```
+
+Components that use `useToast()` must be wrapped in `<ToastProvider>` in tests.
 
 ---
 
@@ -204,5 +217,5 @@ Same color palette and JetBrains Mono font as web. Terminal aesthetic with dark 
 
 ## Docs
 
-Design spec: `docs/superpowers/specs/2026-04-07-cache-web-design.md`
-Implementation plan: `docs/superpowers/plans/2026-04-07-cache-web.md`
+Design spec: `docs/superpowers/specs/2026-04-08-cachenotes-web-production.md`
+Implementation plan: `docs/superpowers/plans/2026-04-08-cachenotes-web-production.md`
