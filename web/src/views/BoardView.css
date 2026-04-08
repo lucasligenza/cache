@@ -217,11 +217,11 @@
 }
 
 .board-view__confirm-label {
-  color: #FF4444;
+  color: var(--red);
   font-size: 11px;
   flex: 1;
 }
 
 .board-view__settings-action--danger {
-  color: #FF4444;
+  color: var(--red);
 }
