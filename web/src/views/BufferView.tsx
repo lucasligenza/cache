@@ -7,10 +7,10 @@ interface Props {
   categories: Category[];
   onAssign: (noteId: string, categoryId: string) => void;
   onDelete: (noteId: string) => void;
-  onUpdate?: (id: string, updates: Partial<Note>) => void;
+  onUpdate: (id: string, updates: Partial<Note>) => void;
 }
 
-export function BufferView({ notes, categories, onAssign, onDelete }: Props) {
+export function BufferView({ notes, categories, onAssign, onDelete, onUpdate }: Props) {
   return (
     <div className="buffer-view">
       <div className="buffer-view__label">
@@ -28,6 +28,7 @@ export function BufferView({ notes, categories, onAssign, onDelete }: Props) {
           categories={categories}
           onAssign={onAssign}
           onDelete={onDelete}
+          onUpdate={onUpdate}
         />
       ))}
     </div>
