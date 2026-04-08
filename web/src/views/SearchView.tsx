@@ -51,8 +51,9 @@ export function SearchView({ notes, categories, onNavigate }: Props) {
   return (
     <div className="search-view">
       <div className="search-view__bar">
-        <span className="search-view__prompt">~/cache $ grep</span>
+        <label htmlFor="search-input" className="search-view__prompt">~/cache $ grep</label>
         <input
+          id="search-input"
           ref={inputRef}
           className="search-view__input"
           value={query}
@@ -89,7 +90,10 @@ export function SearchView({ notes, categories, onNavigate }: Props) {
               <div
                 key={note.id}
                 className="search-view__result"
+                role="button"
+                tabIndex={0}
                 onClick={() => handleResultClick(note)}
+                onKeyDown={e => { if (e.key === 'Enter') handleResultClick(note); }}
               >
                 <div className="search-view__result-text">
                   {highlightMatch(note.text, query)}
