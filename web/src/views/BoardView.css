@@ -208,3 +208,20 @@
   text-align: center;
   opacity: 0.6;
 }
+
+.board-view__confirm-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.board-view__confirm-label {
+  color: #FF4444;
+  font-size: 11px;
+  flex: 1;
+}
+
+.board-view__settings-action--danger {
+  color: #FF4444;
+}

@@ -22,6 +22,7 @@ export function BoardView({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [newCatName, setNewCatName] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   if (activeCatId) {
     const cat = categories.find(c => c.id === activeCatId);
@@ -44,6 +45,7 @@ export function BoardView({
             categories={categories.filter(c => c.id !== activeCatId)}
             onAssign={(noteId, catId) => onUpdateNote(noteId, { category_id: catId })}
             onDelete={onDeleteNote}
+            onUpdate={onUpdateNote}
           />
         ))}
       </div>
@@ -112,11 +114,30 @@ export function BoardView({
                   <button className="board-view__settings-action" onClick={() => { setEditingId(cat.id); setEditingName(cat.name); }}>
                     rename
                   </button>
-                  <button className="board-view__settings-action board-view__settings-action--danger" onClick={() => {
-                    if (confirm(`Delete /${cat.name.toLowerCase()}? Notes return to buffer.`)) onDeleteCategory(cat.id);
-                  }}>
-                    rm
-                  </button>
+                  {deletingId === cat.id ? (
+                    <div className="board-view__confirm-row">
+                      <span className="board-view__confirm-label">rm /{cat.name.toLowerCase()}?</span>
+                      <button
+                        className="board-view__settings-action board-view__settings-action--danger"
+                        onClick={() => { onDeleteCategory(cat.id); setDeletingId(null); }}
+                      >
+                        rm
+                      </button>
+                      <button
+                        className="board-view__settings-action"
+                        onClick={() => setDeletingId(null)}
+                      >
+                        cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      className="board-view__settings-action board-view__settings-action--danger"
+                      onClick={() => setDeletingId(cat.id)}
+                    >
+                      rm
+                    </button>
+                  )}
                 </>
               )}
             </div>
