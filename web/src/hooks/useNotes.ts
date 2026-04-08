@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { Note } from '../types';
 
-export function useNotes(enabled = true) {
+export function useNotes(enabled = true, onError?: (msg: string) => void) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -12,10 +12,10 @@ export function useNotes(enabled = true) {
       .select('*')
       .is('archived_at', null)
       .order('created_at', { ascending: false });
-    if (error) { console.error(error); return; }
+    if (error) { onError?.('failed to load notes'); setLoading(false); return; }
     setNotes(data || []);
     setLoading(false);
-  }, []);
+  }, [onError]);
 
   useEffect(() => { if (enabled) fetch(); }, [fetch, enabled]);
 

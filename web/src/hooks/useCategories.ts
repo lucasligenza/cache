@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Category } from '../types';
 import { DEFAULT_CATEGORIES, ACCENT_COLORS } from '../constants';
 
-export function useCategories(enabled = true) {
+export function useCategories(enabled = true, onError?: (msg: string) => void) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -12,7 +12,7 @@ export function useCategories(enabled = true) {
       .from('categories')
       .select('*')
       .order('created_at', { ascending: true });
-    if (error) { console.error(error); return; }
+    if (error) { onError?.('failed to load categories'); setLoading(false); return; }
     if (data && data.length === 0) {
       const { data: seeded } = await supabase
         .from('categories')
@@ -23,7 +23,7 @@ export function useCategories(enabled = true) {
       setCategories(data || []);
     }
     setLoading(false);
-  }, []);
+  }, [onError]);
 
   useEffect(() => { if (enabled) fetch(); }, [fetch, enabled]);
 
