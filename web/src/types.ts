@@ -1,4 +1,4 @@
-export type ViewName = 'buffer' | 'board' | 'graph';
+export type ViewName = 'buffer' | 'board' | 'search';
 
 export interface Category {
   id: string;
@@ -18,11 +18,4 @@ export interface Note {
   pending_review: boolean;
   pinned: boolean;
   archived_at: string | null;
-}
-
-export interface NoteConnection {
-  id: string;
-  source_note_id: string;
-  target_note_id: string;
-  created_at: string;
 }

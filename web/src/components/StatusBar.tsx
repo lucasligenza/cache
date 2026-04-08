@@ -10,7 +10,7 @@ interface Props {
 const TABS: { view: ViewName; label: string }[] = [
   { view: 'buffer', label: 'buffer' },
   { view: 'board',  label: 'board'  },
-  { view: 'graph',  label: 'graph'  },
+  { view: 'search', label: 'search' },
 ];
 
 export function StatusBar({ activeView, unsortedCount, onTabClick }: Props) {

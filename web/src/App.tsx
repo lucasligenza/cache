@@ -8,7 +8,6 @@ import { StatusBar } from './components/StatusBar';
 import { CaptureBar } from './components/CaptureBar';
 import { BufferView } from './views/BufferView';
 import { BoardView } from './views/BoardView';
-import { GraphView } from './views/GraphView';
 import './App.css';
 
 export default function App() {
@@ -16,7 +15,6 @@ export default function App() {
   const [activeView, setActiveView] = useState<ViewName>('buffer');
 
   const {
-    notes,
     unsortedNotes,
     loading: notesLoading,
     createNote,
@@ -79,9 +77,7 @@ export default function App() {
             onDeleteCategory={(id) => deleteCategory(id).catch(console.error)}
           />
         )}
-        {activeView === 'graph' && (
-          <GraphView allNotes={notes} categories={categories} />
-        )}
+        {activeView === 'search' && null}
       </div>
       <CaptureBar categories={categories} onCommit={handleCommit} />
     </div>
