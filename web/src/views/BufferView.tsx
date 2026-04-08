@@ -7,6 +7,7 @@ interface Props {
   categories: Category[];
   onAssign: (noteId: string, categoryId: string) => void;
   onDelete: (noteId: string) => void;
+  onUpdate?: (id: string, updates: Partial<Note>) => void;
 }
 
 export function BufferView({ notes, categories, onAssign, onDelete }: Props) {
