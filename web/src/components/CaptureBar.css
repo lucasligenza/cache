@@ -40,7 +40,7 @@
   outline: none;
   color: var(--text);
   font-family: var(--font);
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
   caret-color: var(--accent);
   resize: none;
@@ -132,4 +132,32 @@
   height: 6px;
   border-radius: 1px;
   flex-shrink: 0;
+}
+
+.capture-bar__send-btn {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-family: var(--font);
+  font-size: 14px;
+  padding: 4px 10px;
+  min-height: 44px;
+  min-width: 44px;
+  cursor: pointer;
+  flex-shrink: 0;
+  align-self: flex-end;
+  margin-left: 6px;
+}
+
+@media (pointer: coarse) {
+  .capture-bar__send-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .capture-bar__hint {
+    display: none;
+  }
 }
