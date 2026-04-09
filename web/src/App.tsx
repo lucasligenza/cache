@@ -8,7 +8,8 @@ import { subscribeToPush, unsubscribeFromPush, getPushStatus } from './lib/push'
 import { BootSequence } from './components/BootSequence';
 import { DataLoadingScreen } from './components/DataLoadingScreen';
 import { LoginScreen } from './components/LoginScreen';
-import { StatusBar } from './components/StatusBar';
+import { AppHeader } from './components/AppHeader';
+import { BottomNav } from './components/BottomNav';
 import { CaptureBar } from './components/CaptureBar';
 import { BufferView } from './views/BufferView';
 import { BoardView } from './views/BoardView';
@@ -29,15 +30,8 @@ export default function App() {
   );
   const [pushStatus, setPushStatus] = useState<'unsupported' | 'denied' | 'subscribed' | 'unsubscribed'>('unsubscribed');
 
-  const onNotesError = useCallback(
-    (msg: string) => showToast('error', msg),
-    [showToast]
-  );
-
-  const onCatsError = useCallback(
-    (msg: string) => showToast('error', msg),
-    [showToast]
-  );
+  const onNotesError = useCallback((msg: string) => showToast('error', msg), [showToast]);
+  const onCatsError = useCallback((msg: string) => showToast('error', msg), [showToast]);
 
   const {
     notes,
@@ -59,9 +53,7 @@ export default function App() {
 
   const handleCommit = useCallback(
     (text: string, categoryId?: string) => {
-      createNote(text, categoryId).catch(() =>
-        showToast('error', 'failed to create note')
-      );
+      createNote(text, categoryId).catch(() => showToast('error', 'failed to create note'));
     },
     [createNote, showToast]
   );
@@ -129,11 +121,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <StatusBar
-        activeView={activeView}
-        unsortedCount={unsortedNotes.length}
-        onTabClick={setActiveView}
-      />
+      <AppHeader />
       <div className="app-shell__content">
         {activeView === 'buffer' && (
           <BufferView
@@ -145,14 +133,10 @@ export default function App() {
               )
             }
             onDelete={(id) =>
-              deleteNote(id).catch(() =>
-                showToast('error', 'failed to delete note')
-              )
+              deleteNote(id).catch(() => showToast('error', 'failed to delete note'))
             }
             onUpdate={(id, updates) =>
-              updateNote(id, updates).catch(() =>
-                showToast('error', 'failed to update note')
-              )
+              updateNote(id, updates).catch(() => showToast('error', 'failed to update note'))
             }
           />
         )}
@@ -161,29 +145,19 @@ export default function App() {
             categories={categories}
             getNotesByCategory={getNotesByCategory}
             onUpdateNote={(id, updates) =>
-              updateNote(id, updates).catch(() =>
-                showToast('error', 'failed to update note')
-              )
+              updateNote(id, updates).catch(() => showToast('error', 'failed to update note'))
             }
             onDeleteNote={(id) =>
-              deleteNote(id).catch(() =>
-                showToast('error', 'failed to delete note')
-              )
+              deleteNote(id).catch(() => showToast('error', 'failed to delete note'))
             }
             onCreateCategory={(name) =>
-              createCategory(name).catch(() =>
-                showToast('error', 'failed to create directory')
-              )
+              createCategory(name).catch(() => showToast('error', 'failed to create directory'))
             }
             onRenameCategory={(id, name) =>
-              updateCategory(id, { name }).catch(() =>
-                showToast('error', 'failed to rename directory')
-              )
+              updateCategory(id, { name }).catch(() => showToast('error', 'failed to rename directory'))
             }
             onDeleteCategory={(id) =>
-              deleteCategory(id).catch(() =>
-                showToast('error', 'failed to delete directory')
-              )
+              deleteCategory(id).catch(() => showToast('error', 'failed to delete directory'))
             }
           />
         )}
@@ -211,6 +185,11 @@ export default function App() {
       {activeView !== 'settings' && (
         <CaptureBar categories={categories} onCommit={handleCommit} />
       )}
+      <BottomNav
+        activeView={activeView}
+        unsortedCount={unsortedNotes.length}
+        onTabClick={setActiveView}
+      />
     </div>
   );
 }
