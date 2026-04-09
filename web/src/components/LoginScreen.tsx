@@ -3,7 +3,7 @@ import './LoginScreen.css';
 
 interface LoginScreenProps {
   onSignIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  onSignUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  onSignUp: (email: string, password: string) => Promise<{ error: string | null; successMessage?: string }>;
 }
 
 export function LoginScreen({ onSignIn, onSignUp }: LoginScreenProps) {
@@ -11,11 +11,13 @@ export function LoginScreen({ onSignIn, onSignUp }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccessMessage(null);
 
     if (mode === 'signup' && password.length < 8) {
       setError('password must be at least 8 characters');
@@ -24,11 +26,20 @@ export function LoginScreen({ onSignIn, onSignUp }: LoginScreenProps) {
 
     setSubmitting(true);
 
-    const handler = mode === 'login' ? onSignIn : onSignUp;
-    const result = await handler(email, password);
-
-    if (result.error) {
-      setError(result.error);
+    if (mode === 'login') {
+      const result = await onSignIn(email, password);
+      if (result.error) setError(result.error);
+    } else {
+      const result = await onSignUp(email, password);
+      if (result.error) {
+        setError(result.error);
+      } else if (result.successMessage) {
+        // Email confirmation required — switch to login mode with the message
+        setSuccessMessage(result.successMessage);
+        setMode('login');
+        setPassword('');
+      }
+      // If no error and no successMessage, onAuthStateChange fires and App transitions automatically
     }
 
     setSubmitting(false);
@@ -37,6 +48,7 @@ export function LoginScreen({ onSignIn, onSignUp }: LoginScreenProps) {
   const toggleMode = () => {
     setMode(m => m === 'login' ? 'signup' : 'login');
     setError(null);
+    setSuccessMessage(null);
   };
 
   const command = mode === 'login' ? 'auth --login' : 'auth --register';
@@ -92,6 +104,7 @@ export function LoginScreen({ onSignIn, onSignUp }: LoginScreenProps) {
           </button>
 
           {error && <p className="login-screen__error">error: {error}</p>}
+          {successMessage && <p className="login-screen__success">{successMessage}</p>}
         </form>
 
         <div className="login-screen__toggle">

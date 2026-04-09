@@ -70,6 +70,14 @@ export function CaptureBar({ categories, onCommit }: Props) {
           placeholder="type a note..."
           rows={1}
         />
+        <button
+          className="capture-bar__send-btn"
+          onClick={handleCommit}
+          aria-label="send"
+          type="button"
+        >
+          ↵
+        </button>
       </div>
 
       <div className="capture-bar__footer">
