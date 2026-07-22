@@ -137,3 +137,34 @@
   border-color: var(--text);
   box-shadow: 0 0 0 1px var(--swatch-color);
 }
+
+.settings-upgrade {
+  margin-top: 8px;
+}
+
+.settings-upgrade__form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 280px;
+}
+
+.settings-upgrade__input {
+  background: var(--surface-deep);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  padding: 8px 10px;
+  border-radius: 3px;
+  outline: none;
+}
+
+.settings-upgrade__input:focus {
+  border-color: var(--accent-glow);
+}
+
+.settings-upgrade__actions {
+  display: flex;
+  gap: 12px;
+}

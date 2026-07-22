@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import './CommandPalette.css';
 
 export interface Command {
@@ -18,14 +19,14 @@ export function CommandPalette({ open, commands, onClose }: Props) {
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const paletteRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(paletteRef, open); // traps Tab + restores focus on close
 
   useEffect(() => {
     if (open) {
       setQuery('');
       setIndex(0);
-      // focus after the overlay paints
-      const t = setTimeout(() => inputRef.current?.focus(), 0);
-      return () => clearTimeout(t);
     }
   }, [open]);
 
@@ -55,7 +56,14 @@ export function CommandPalette({ open, commands, onClose }: Props) {
 
   return (
     <div className="cmd-overlay" onMouseDown={onClose}>
-      <div className="cmd-palette" onMouseDown={e => e.stopPropagation()}>
+      <div
+        className="cmd-palette"
+        ref={paletteRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="command palette"
+        onMouseDown={e => e.stopPropagation()}
+      >
         <div className="cmd-palette__bar">
           <span className="cmd-palette__prompt">~/cache $</span>
           <input

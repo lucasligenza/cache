@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import type { FormEvent } from 'react';
 import './SettingsView.css';
 
 interface Props {
@@ -13,6 +15,9 @@ interface Props {
   onDisableNotifications: () => void;
   onOpenArchive: () => void;
   archivedCount?: number;
+  onExportJson: () => void;
+  onExportMarkdown: () => void;
+  onUpgradeAccount?: (email: string, password: string) => Promise<{ error: string | null }>;
 }
 
 const ACCENT_OPTIONS: { key: string; color: string }[] = [
@@ -24,7 +29,23 @@ const ACCENT_OPTIONS: { key: string; color: string }[] = [
   { key: 'white',  color: '#E0E0E0' },
 ];
 
-export function SettingsView({ userEmail, isGuest = false, theme, accent, onThemeChange, onAccentChange, onSignOut, pushStatus, onEnableNotifications, onDisableNotifications, onOpenArchive, archivedCount = 0 }: Props) {
+export function SettingsView({ userEmail, isGuest = false, theme, accent, onThemeChange, onAccentChange, onSignOut, pushStatus, onEnableNotifications, onDisableNotifications, onOpenArchive, archivedCount = 0, onExportJson, onExportMarkdown, onUpgradeAccount }: Props) {
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [upgradeMsg, setUpgradeMsg] = useState<string | null>(null);
+
+  const handleUpgrade = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!onUpgradeAccount) return;
+    if (password.length < 8) { setUpgradeMsg('password must be at least 8 characters'); return; }
+    setSubmitting(true);
+    const { error } = await onUpgradeAccount(email, password);
+    setSubmitting(false);
+    setUpgradeMsg(error ?? 'account created — your notes are saved');
+  };
+
   return (
     <div className="settings-view">
       <div className="settings-view__header">
@@ -44,6 +65,45 @@ export function SettingsView({ userEmail, isGuest = false, theme, accent, onThem
           {isGuest && (
             <div className="settings-row">
               <span className="settings-row__dim">guest session — sign out clears these notes</span>
+            </div>
+          )}
+          {isGuest && onUpgradeAccount && (
+            <div className="settings-upgrade">
+              {!upgradeOpen ? (
+                <button className="settings-btn" onClick={() => setUpgradeOpen(true)}>
+                  $ create account (keep notes)
+                </button>
+              ) : (
+                <form className="settings-upgrade__form" onSubmit={handleUpgrade}>
+                  <input
+                    className="settings-upgrade__input"
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="email"
+                    autoComplete="email"
+                    required
+                  />
+                  <input
+                    className="settings-upgrade__input"
+                    type="password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="password (8+ chars)"
+                    autoComplete="new-password"
+                    required
+                  />
+                  <div className="settings-upgrade__actions">
+                    <button className="settings-btn" type="submit" disabled={submitting}>
+                      {submitting ? 'creating...' : 'create'}
+                    </button>
+                    <button className="settings-btn settings-btn--muted" type="button" onClick={() => setUpgradeOpen(false)}>
+                      cancel
+                    </button>
+                  </div>
+                  {upgradeMsg && <span className="settings-row__dim">{upgradeMsg}</span>}
+                </form>
+              )}
             </div>
           )}
           <div className="settings-row">
@@ -129,6 +189,17 @@ export function SettingsView({ userEmail, isGuest = false, theme, accent, onThem
                 aria-label={`accent color ${key}`}
               />
             ))}
+          </div>
+        </section>
+
+        {/* Data */}
+        <section className="settings-section">
+          <div className="settings-section__label">data</div>
+          <div className="settings-row settings-row--inline">
+            <button className="settings-btn" onClick={onExportJson}>$ export json</button>
+            <button className="settings-btn settings-btn--muted" onClick={onExportMarkdown} style={{ marginLeft: '16px' }}>
+              export md
+            </button>
           </div>
         </section>
 

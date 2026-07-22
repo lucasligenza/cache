@@ -4,14 +4,20 @@ interface Props {
   totalNotes?: number;
   unsortedCount?: number;
   reviewCount?: number;
+  isGuest?: boolean;
   onOpenReview?: () => void;
   onOpenSettings?: () => void;
 }
 
-export function AppHeader({ totalNotes = 0, unsortedCount = 0, reviewCount = 0, onOpenReview, onOpenSettings }: Props) {
+export function AppHeader({ totalNotes = 0, unsortedCount = 0, reviewCount = 0, isGuest = false, onOpenReview, onOpenSettings }: Props) {
   return (
     <header className="app-header">
       <span className="app-header__brand">~/cache</span>
+      {isGuest && (
+        <button className="app-header__guest" onClick={onOpenSettings} title="guest mode — tap for account">
+          guest
+        </button>
+      )}
       <span className="app-header__status">
         <span className="app-header__stat">{totalNotes} {totalNotes === 1 ? 'note' : 'notes'}</span>
         {unsortedCount > 0 && (

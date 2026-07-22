@@ -247,7 +247,15 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
 
   return (
     <div className={cardClasses}>
-      <div className="note-card__text" onClick={() => { setEditText(note.text); setEditing(true); }}>
+      <div
+        className="note-card__text"
+        role="button"
+        tabIndex={0}
+        onClick={() => { setEditText(note.text); setEditing(true); }}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditText(note.text); setEditing(true); }
+        }}
+      >
         {note.text}
       </div>
       <div className="note-card__meta">

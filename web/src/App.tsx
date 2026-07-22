@@ -13,6 +13,8 @@ import { BottomNav } from './components/BottomNav';
 import { CaptureBar } from './components/CaptureBar';
 import { CommandPalette, type Command } from './components/CommandPalette';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay';
+import { OnboardingOverlay } from './components/OnboardingOverlay';
+import { ConnectionError } from './components/ConnectionError';
 import { BufferView } from './views/BufferView';
 import { BoardView } from './views/BoardView';
 import { SearchView } from './views/SearchView';
@@ -20,11 +22,12 @@ import { SettingsView } from './views/SettingsView';
 import { ArchiveView } from './views/ArchiveView';
 import { ReviewView } from './views/ReviewView';
 import { buildReviewSet } from './lib/review';
+import { exportJson, exportMarkdown } from './lib/exporter';
 import './App.css';
 
 export default function App() {
   const { showToast } = useToast();
-  const { user, loading: authLoading, signIn, signUp, signInAsGuest, signOut } = useAuth();
+  const { user, loading: authLoading, signIn, signUp, signInAsGuest, upgradeGuest, signOut } = useAuth();
   const [booted, setBooted] = useState(() => sessionStorage.getItem('cn_booted') === '1');
   const [activeView, setActiveView] = useState<ViewName>('buffer');
   const [theme, setTheme] = useState<'dark' | 'light'>(() =>
@@ -42,6 +45,7 @@ export default function App() {
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('cn_onboarded'));
 
   const onNotesError = useCallback((msg: string) => showToast('error', msg), [showToast]);
   const onCatsError = useCallback((msg: string) => showToast('error', msg), [showToast]);
@@ -53,6 +57,7 @@ export default function App() {
     archived,
     unsortedNotes,
     loading: notesLoading,
+    error: notesError,
     createNote,
     updateNote,
     archiveNote,
@@ -60,14 +65,17 @@ export default function App() {
     deleteNote,
     getNotesByCategory,
     fetchArchived,
+    refetch: refetchNotes,
   } = useNotes(!!user, onNotesError);
 
   const {
     categories,
     loading: catsLoading,
+    error: catsError,
     createCategory,
     updateCategory,
     deleteCategory,
+    refetch: refetchCategories,
   } = useCategories(!!user, onCatsError);
 
   const reviewCount = useMemo(() => buildReviewSet(notes, Date.now()).count, [notes]);
@@ -134,6 +142,22 @@ export default function App() {
     setTimeout(() => (document.querySelector('.capture-bar__input') as HTMLTextAreaElement | null)?.focus(), 60);
   }, [navigate]);
 
+  const dismissOnboarding = useCallback(() => {
+    localStorage.setItem('cn_onboarded', '1');
+    setShowOnboarding(false);
+  }, []);
+
+  const handleRetry = useCallback(() => { refetchNotes(); refetchCategories(); }, [refetchNotes, refetchCategories]);
+
+  const handleExportJson = useCallback(() => exportJson(notes, categories, new Date().toISOString()), [notes, categories]);
+  const handleExportMarkdown = useCallback(() => exportMarkdown(notes, categories, new Date().toISOString()), [notes, categories]);
+
+  const handleUpgradeAccount = useCallback(async (email: string, password: string) => {
+    const result = await upgradeGuest(email, password);
+    if (!result.error) showToast('ok', 'account created — notes saved');
+    return result;
+  }, [upgradeGuest, showToast]);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('cn_theme', theme);
@@ -156,6 +180,17 @@ export default function App() {
       fetchArchived();
     }
   }, [activeView, fetchArchived]);
+
+  useEffect(() => {
+    const onOffline = () => showToast('warn', 'connection lost — you are offline');
+    const onOnline = () => showToast('ok', 'back online');
+    window.addEventListener('offline', onOffline);
+    window.addEventListener('online', onOnline);
+    return () => {
+      window.removeEventListener('offline', onOffline);
+      window.removeEventListener('online', onOnline);
+    };
+  }, [showToast]);
 
   const handleEnableNotifications = useCallback(async () => {
     const { error } = await subscribeToPush();
@@ -227,12 +262,12 @@ export default function App() {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        background: '#1a1a1a',
-        color: '#39FF14',
+        background: 'var(--bg)',
+        color: 'var(--accent)',
         fontFamily: "'JetBrains Mono', monospace",
         fontSize: '14px',
       }}>
-        loading...
+        authenticating...
       </div>
     );
   }
@@ -249,12 +284,17 @@ export default function App() {
     return <DataLoadingScreen />;
   }
 
+  if ((notesError && notes.length === 0) || (catsError && categories.length === 0)) {
+    return <ConnectionError onRetry={handleRetry} />;
+  }
+
   return (
     <div className="app-shell">
       <AppHeader
         totalNotes={notes.length}
         unsortedCount={unsortedNotes.length}
         reviewCount={reviewCount}
+        isGuest={!!user.is_anonymous}
         onOpenReview={() => navigate('review')}
         onOpenSettings={() => navigate('settings')}
       />
@@ -322,6 +362,9 @@ export default function App() {
             onDisableNotifications={handleDisableNotifications}
             onOpenArchive={handleOpenArchive}
             archivedCount={archived.length}
+            onExportJson={handleExportJson}
+            onExportMarkdown={handleExportMarkdown}
+            onUpgradeAccount={user.is_anonymous ? handleUpgradeAccount : undefined}
           />
         )}
         {activeView === 'review' && (
@@ -365,6 +408,7 @@ export default function App() {
 
       <CommandPalette open={paletteOpen} commands={commands} onClose={() => setPaletteOpen(false)} />
       <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      <OnboardingOverlay open={showOnboarding} onDismiss={dismissOnboarding} />
     </div>
   );
 }

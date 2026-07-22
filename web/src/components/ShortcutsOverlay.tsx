@@ -1,3 +1,5 @@
+import { useRef } from 'react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import './ShortcutsOverlay.css';
 
 interface Props {
@@ -18,10 +20,24 @@ const SHORTCUTS: { keys: string; desc: string }[] = [
 ];
 
 export function ShortcutsOverlay({ open, onClose }: Props) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef, open);
+
   if (!open) return null;
   return (
-    <div className="shortcuts-overlay" onMouseDown={onClose}>
-      <div className="shortcuts-panel" onMouseDown={e => e.stopPropagation()}>
+    <div
+      className="shortcuts-overlay"
+      onMouseDown={onClose}
+      onKeyDown={e => { if (e.key === 'Escape') onClose(); }}
+    >
+      <div
+        className="shortcuts-panel"
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="keyboard shortcuts"
+        onMouseDown={e => e.stopPropagation()}
+      >
         <div className="shortcuts-panel__header">
           <span className="shortcuts-panel__title">$ man cache — shortcuts</span>
           <button className="shortcuts-panel__close" onClick={onClose}>esc</button>

@@ -8,6 +8,7 @@ interface UseAuthReturn {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string) => Promise<{ error: string | null; successMessage?: string }>;
   signInAsGuest: () => Promise<{ error: string | null }>;
+  upgradeGuest: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -54,9 +55,17 @@ export function useAuth(): UseAuthReturn {
     return { error: null };
   };
 
+  // Convert the current anonymous user into a permanent account, preserving
+  // their notes (same user_id). Supabase may require email confirmation.
+  const upgradeGuest = async (email: string, password: string): Promise<{ error: string | null }> => {
+    const { error } = await supabase.auth.updateUser({ email, password });
+    if (error) return { error: error.message };
+    return { error: null };
+  };
+
   const signOut = async (): Promise<void> => {
     await supabase.auth.signOut();
   };
 
-  return { user, loading, signIn, signUp, signInAsGuest, signOut };
+  return { user, loading, signIn, signUp, signInAsGuest, upgradeGuest, signOut };
 }

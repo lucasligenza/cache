@@ -14,6 +14,7 @@ export function useNotes(enabled = true, onError?: (msg: string) => void) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [archived, setArchived] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   // Keep a live ref so archiveNote can find the note being removed without
   // depending on `notes` (which would churn the callback identity every render).
@@ -26,7 +27,8 @@ export function useNotes(enabled = true, onError?: (msg: string) => void) {
       .select('*')
       .is('archived_at', null)
       .order('created_at', { ascending: false });
-    if (error) { onError?.('failed to load notes'); setLoading(false); return; }
+    if (error) { setLoadError(true); onError?.('failed to load notes'); setLoading(false); return; }
+    setLoadError(false);
     setNotes(sortNotes(data || []));
     setLoading(false);
   }, [onError]);
@@ -124,6 +126,7 @@ export function useNotes(enabled = true, onError?: (msg: string) => void) {
     archived,
     unsortedNotes: notes.filter(n => !n.category_id),
     loading,
+    error: loadError,
     createNote,
     updateNote,
     archiveNote,

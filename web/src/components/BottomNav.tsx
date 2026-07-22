@@ -44,6 +44,8 @@ export function BottomNav({ activeView, unsortedCount, reviewCount, onTabClick }
           <button
             key={view}
             className={`bottom-nav__tab${activeView === view ? ' bottom-nav__tab--active' : ''}`}
+            aria-current={activeView === view ? 'page' : undefined}
+            aria-label={label}
             onClick={() => onTabClick(view)}
           >
             <span className="bottom-nav__icon">

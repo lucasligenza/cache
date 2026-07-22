@@ -6,13 +6,15 @@ import { DEFAULT_CATEGORIES, ACCENT_COLORS } from '../constants';
 export function useCategories(enabled = true, onError?: (msg: string) => void) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const fetch = useCallback(async () => {
     const { data, error } = await supabase
       .from('categories')
       .select('*')
       .order('created_at', { ascending: true });
-    if (error) { onError?.('failed to load categories'); setLoading(false); return; }
+    if (error) { setLoadError(true); onError?.('failed to load categories'); setLoading(false); return; }
+    setLoadError(false);
     if (data && data.length === 0) {
       const { data: seeded } = await supabase
         .from('categories')
@@ -58,5 +60,5 @@ export function useCategories(enabled = true, onError?: (msg: string) => void) {
     if (error) { fetch(); throw error; }
   }, [fetch]);
 
-  return { categories, loading, createCategory, updateCategory, deleteCategory, refetch: fetch };
+  return { categories, loading, error: loadError, createCategory, updateCategory, deleteCategory, refetch: fetch };
 }

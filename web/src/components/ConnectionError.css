@@ -1,0 +1,43 @@
+.conn-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  padding: 24px;
+}
+
+.conn-error__box {
+  max-width: 360px;
+  text-align: left;
+}
+
+.conn-error__title {
+  color: var(--red);
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+
+.conn-error__msg {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+.conn-error__retry {
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-family: var(--font);
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.conn-error__retry:hover {
+  background: var(--accent-glow-soft);
+}

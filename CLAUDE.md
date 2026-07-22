@@ -118,11 +118,13 @@ web/src/
 ├── lib/
 │   ├── supabase.ts             # createClient (throws if env vars missing)
 │   ├── push.ts                 # web-push subscribe/unsubscribe/status
-│   └── review.ts               # buildReviewSet() — pure triage selector (+ countReviewedToday)
+│   ├── review.ts               # buildReviewSet() — pure triage selector (+ countReviewedToday)
+│   └── exporter.ts             # buildJson/buildMarkdown + client-side download
 ├── hooks/
-│   ├── useNotes.ts             # CRUD + pinned-first sort + archive/unarchive + archived fetch
-│   ├── useCategories.ts        # CRUD + seed DEFAULT_CATEGORIES if empty + onError callback
-│   └── useAuth.ts              # Supabase auth session
+│   ├── useNotes.ts             # CRUD + pinned-first sort + archive/unarchive + archived fetch + error state
+│   ├── useCategories.ts        # CRUD + seed DEFAULT_CATEGORIES if empty + onError + error state
+│   ├── useAuth.ts              # Supabase auth: sign in/up, guest (anon), upgradeGuest
+│   └── useFocusTrap.ts         # trap Tab + restore focus for modals (palette/overlays)
 ├── components/
 │   ├── BootSequence.tsx/.css   # Typewriter lines, auto-dismisses at 2.2s
 │   ├── DataLoadingScreen.tsx/.css
@@ -131,8 +133,10 @@ web/src/
 │   ├── BottomNav.tsx/.css      # 4 thumb tabs, amber buffer badge (pulses on increment)
 │   ├── NoteCard.tsx/.css       # Inline edit, pin, ping presets/snooze/custom, delete→archive
 │   ├── CaptureBar.tsx/.css     # Auto-focused prompt, /dir slash-routing, keyboard picker, cached ✓
-│   ├── CommandPalette.tsx/.css # Ctrl/⌘-K fuzzy command runner
-│   ├── ShortcutsOverlay.tsx/.css # ? keyboard cheatsheet
+│   ├── CommandPalette.tsx/.css # Ctrl/⌘-K fuzzy command runner (role=dialog + focus trap)
+│   ├── ShortcutsOverlay.tsx/.css # ? keyboard cheatsheet (role=dialog + focus trap)
+│   ├── OnboardingOverlay.tsx/.css # one-time first-run tips (localStorage cn_onboarded)
+│   ├── ConnectionError.tsx/.css # themed retry screen when initial data load fails
 │   ├── ErrorBoundary.tsx       # Terminal-aesthetic crash fallback screen
 │   └── Toast.tsx/.css          # Toast stack + ToastProvider (supports [undo] action button)
 └── views/
@@ -182,6 +186,13 @@ CSS custom properties live in `index.css`: `--bg`, `--surface`, `--surface-deep`
 - **Search → open note** — clicking a `grep` result (or recent item) navigates to its home view via `App.handleOpenNote`, opens the category, scrolls to and pulse-highlights the card (`focusNoteId` + `focusNonce`).
 - **Command palette** — `Ctrl/⌘-K` (`CommandPalette`); **slash-routing** — `/dir …` in `CaptureBar` files a note straight into a category; **global keys** — `1-4` views, `/` search, `n` new note, `?` cheatsheet (guarded against firing inside inputs).
 - **Category color** editable in the `BoardView` config panel (`onSetCategoryColor` → `updateCategory({ color })`).
+
+### Reliability & Accessibility
+
+- **A11y** — note tap-to-edit is a real focusable `role="button"` (Enter/Space); `CommandPalette`/`ShortcutsOverlay`/`OnboardingOverlay` are `role="dialog"` with `useFocusTrap` (trap Tab + restore focus, Esc closes); toasts live in an `aria-live="polite"` region; active nav tab has `aria-current="page"`; `index.css` honors `prefers-reduced-motion`.
+- **Errors/loading** — `useNotes`/`useCategories` expose an `error` flag; App shows `ConnectionError` (with `[retry]`) only when the *initial* load fails with no data (a failed rollback-resync never blanks the app). Auth loader is theme-aware. `online`/`offline` window events toast.
+- **Onboarding** — first run shows `OnboardingOverlay` once (`cn_onboarded`). Guests get an amber `guest` chip in the header + a **create-account** upgrade form in Settings (`upgradeGuest` → `supabase.auth.updateUser`, preserving notes).
+- **Export** — Settings → `data`: JSON + Markdown export of notes+categories via `lib/exporter.ts` (client-side Blob download).
 
 ### Production Infrastructure
 

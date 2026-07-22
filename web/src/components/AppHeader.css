@@ -17,6 +17,18 @@
   flex-shrink: 0;
 }
 
+.app-header__guest {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid rgba(245, 166, 35, 0.4);
+  color: var(--amber);
+  font-family: var(--font);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
 .app-header__status {
   display: flex;
   align-items: center;
