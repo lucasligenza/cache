@@ -73,3 +73,17 @@
   padding: 0 3px;
   line-height: 1;
 }
+
+.bottom-nav__badge--review {
+  background: var(--amber);
+}
+
+.bottom-nav__badge--pulse {
+  animation: badge-pulse 0.4s ease-out;
+}
+
+@keyframes badge-pulse {
+  0%   { transform: scale(1); box-shadow: 0 0 0 0 var(--accent-glow); }
+  40%  { transform: scale(1.5); box-shadow: 0 0 8px 2px var(--accent-glow); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+}

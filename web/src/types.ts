@@ -1,4 +1,4 @@
-export type ViewName = 'buffer' | 'board' | 'search' | 'settings';
+export type ViewName = 'buffer' | 'board' | 'search' | 'settings' | 'archive' | 'review';
 
 export interface Category {
   id: string;
@@ -18,4 +18,5 @@ export interface Note {
   pending_review: boolean;
   pinned: boolean;
   archived_at: string | null;
+  reviewed_at: string | null;
 }

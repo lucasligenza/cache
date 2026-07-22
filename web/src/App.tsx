@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
-import type { ViewName } from './types';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import type { ViewName, Note } from './types';
 import { useAuth } from './hooks/useAuth';
 import { useNotes } from './hooks/useNotes';
 import { useCategories } from './hooks/useCategories';
@@ -11,16 +11,21 @@ import { LoginScreen } from './components/LoginScreen';
 import { AppHeader } from './components/AppHeader';
 import { BottomNav } from './components/BottomNav';
 import { CaptureBar } from './components/CaptureBar';
+import { CommandPalette, type Command } from './components/CommandPalette';
+import { ShortcutsOverlay } from './components/ShortcutsOverlay';
 import { BufferView } from './views/BufferView';
 import { BoardView } from './views/BoardView';
 import { SearchView } from './views/SearchView';
 import { SettingsView } from './views/SettingsView';
+import { ArchiveView } from './views/ArchiveView';
+import { ReviewView } from './views/ReviewView';
+import { buildReviewSet } from './lib/review';
 import './App.css';
 
 export default function App() {
   const { showToast } = useToast();
-  const { user, loading: authLoading, signIn, signUp, signOut } = useAuth();
-  const [booted, setBooted] = useState(false);
+  const { user, loading: authLoading, signIn, signUp, signInAsGuest, signOut } = useAuth();
+  const [booted, setBooted] = useState(() => sessionStorage.getItem('cn_booted') === '1');
   const [activeView, setActiveView] = useState<ViewName>('buffer');
   const [theme, setTheme] = useState<'dark' | 'light'>(() =>
     (localStorage.getItem('cn_theme') as 'dark' | 'light') || 'dark'
@@ -30,18 +35,32 @@ export default function App() {
   );
   const [pushStatus, setPushStatus] = useState<'unsupported' | 'denied' | 'subscribed' | 'unsubscribed'>('unsubscribed');
 
+  // Focus-a-note plumbing (search → open the actual note).
+  const [focusNoteId, setFocusNoteId] = useState<string | null>(null);
+  const [boardFocusCatId, setBoardFocusCatId] = useState<string | null>(null);
+  const [focusNonce, setFocusNonce] = useState(0);
+
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
   const onNotesError = useCallback((msg: string) => showToast('error', msg), [showToast]);
   const onCatsError = useCallback((msg: string) => showToast('error', msg), [showToast]);
 
+  // Fetch data as soon as the user is known, so it loads *during* the boot
+  // animation instead of behind a second loading screen.
   const {
     notes,
+    archived,
     unsortedNotes,
     loading: notesLoading,
     createNote,
     updateNote,
+    archiveNote,
+    unarchiveNote,
     deleteNote,
     getNotesByCategory,
-  } = useNotes(booted, onNotesError);
+    fetchArchived,
+  } = useNotes(!!user, onNotesError);
 
   const {
     categories,
@@ -49,14 +68,71 @@ export default function App() {
     createCategory,
     updateCategory,
     deleteCategory,
-  } = useCategories(booted, onCatsError);
+  } = useCategories(!!user, onCatsError);
+
+  const reviewCount = useMemo(() => buildReviewSet(notes, Date.now()).count, [notes]);
+
+  const navigate = useCallback((view: ViewName) => {
+    setFocusNoteId(null);
+    setBoardFocusCatId(null);
+    setActiveView(view);
+  }, []);
 
   const handleCommit = useCallback(
     (text: string, categoryId?: string) => {
-      createNote(text, categoryId).catch(() => showToast('error', 'failed to create note'));
+      createNote(text, categoryId)
+        .then(() => {
+          if (activeView !== 'buffer') {
+            const cat = categoryId ? categories.find(c => c.id === categoryId) : null;
+            showToast('ok', `cached → ${cat ? '/' + cat.name.toLowerCase() : 'buffer'}`);
+          }
+        })
+        .catch(() => showToast('error', 'failed to create note'));
     },
-    [createNote, showToast]
+    [createNote, categories, activeView, showToast]
   );
+
+  const handleDelete = useCallback(
+    (id: string) => {
+      archiveNote(id)
+        .then(removed => {
+          if (removed) {
+            showToast('ok', 'note archived', {
+              actionLabel: 'undo',
+              onAction: () => {
+                unarchiveNote(removed).catch(() => showToast('error', 'failed to restore note'));
+              },
+            });
+          }
+        })
+        .catch(() => showToast('error', 'failed to delete note'));
+    },
+    [archiveNote, unarchiveNote, showToast]
+  );
+
+  const handleOpenNote = useCallback((note: Note) => {
+    setBoardFocusCatId(note.category_id);
+    setFocusNoteId(note.id);
+    setFocusNonce(n => n + 1);
+    setActiveView(note.category_id ? 'board' : 'buffer');
+  }, []);
+
+  const handleOpenCategory = useCallback((catId: string) => {
+    setBoardFocusCatId(catId);
+    setFocusNoteId(null);
+    setFocusNonce(n => n + 1);
+    setActiveView('board');
+  }, []);
+
+  const handleOpenArchive = useCallback(() => {
+    fetchArchived();
+    navigate('archive');
+  }, [fetchArchived, navigate]);
+
+  const focusCapture = useCallback(() => {
+    navigate('buffer');
+    setTimeout(() => (document.querySelector('.capture-bar__input') as HTMLTextAreaElement | null)?.focus(), 60);
+  }, [navigate]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -76,19 +152,73 @@ export default function App() {
     if (activeView === 'settings') {
       getPushStatus().then(setPushStatus);
     }
-  }, [activeView]);
+    if (activeView === 'settings' || activeView === 'archive') {
+      fetchArchived();
+    }
+  }, [activeView, fetchArchived]);
 
-  const handleEnableNotifications = async () => {
+  const handleEnableNotifications = useCallback(async () => {
     const { error } = await subscribeToPush();
     if (error) showToast('error', error);
     else { showToast('ok', 'notifications enabled'); setPushStatus('subscribed'); }
-  };
+  }, [showToast]);
 
   const handleDisableNotifications = async () => {
     const { error } = await unsubscribeFromPush();
     if (error) showToast('error', error);
     else { showToast('ok', 'notifications disabled'); setPushStatus('unsubscribed'); }
   };
+
+  // Command palette entries.
+  const commands: Command[] = useMemo(() => {
+    const base: Command[] = [
+      { id: 'go-buffer', label: 'go: buffer', hint: '1', run: () => navigate('buffer') },
+      { id: 'go-board', label: 'go: board', hint: '2', run: () => navigate('board') },
+      { id: 'go-search', label: 'go: search', hint: '3', run: () => navigate('search') },
+      { id: 'go-review', label: 'go: review', hint: '4', run: () => navigate('review') },
+      { id: 'go-settings', label: 'go: settings', hint: '⚙', run: () => navigate('settings') },
+      { id: 'new-note', label: 'new note', hint: 'n', run: focusCapture },
+      { id: 'toggle-theme', label: `theme: switch to ${theme === 'dark' ? 'light' : 'dark'}`, run: () => setTheme(t => (t === 'dark' ? 'light' : 'dark')) },
+      { id: 'open-archive', label: 'open: ~/.trash (archived notes)', run: handleOpenArchive },
+      { id: 'shortcuts', label: 'show keyboard shortcuts', hint: '?', run: () => setShortcutsOpen(true) },
+    ];
+    if (pushStatus === 'unsubscribed') {
+      base.push({ id: 'enable-notif', label: 'enable notifications', run: handleEnableNotifications });
+    }
+    const catCmds: Command[] = categories.map(c => ({
+      id: `cat-${c.id}`,
+      label: `open: /${c.name.toLowerCase()}`,
+      run: () => handleOpenCategory(c.id),
+    }));
+    return [...base, ...catCmds];
+  }, [categories, theme, pushStatus, navigate, focusCapture, handleOpenArchive, handleOpenCategory, handleEnableNotifications]);
+
+  // Global keyboard shortcuts.
+  useEffect(() => {
+    if (!user || !booted) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setPaletteOpen(o => !o);
+        return;
+      }
+      if (paletteOpen || shortcutsOpen) return;
+      const el = e.target as HTMLElement | null;
+      const typing = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+      if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+      switch (e.key) {
+        case '1': navigate('buffer'); break;
+        case '2': navigate('board'); break;
+        case '3': navigate('search'); break;
+        case '4': navigate('review'); break;
+        case '/': e.preventDefault(); navigate('search'); break;
+        case 'n': case 'N': e.preventDefault(); focusCapture(); break;
+        case '?': e.preventDefault(); setShortcutsOpen(true); break;
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [user, booted, paletteOpen, shortcutsOpen, navigate, focusCapture]);
 
   if (authLoading) {
     return (
@@ -108,11 +238,11 @@ export default function App() {
   }
 
   if (!user) {
-    return <LoginScreen onSignIn={signIn} onSignUp={signUp} />;
+    return <LoginScreen onSignIn={signIn} onSignUp={signUp} onGuest={signInAsGuest} />;
   }
 
   if (!booted) {
-    return <BootSequence onDone={() => setBooted(true)} />;
+    return <BootSequence onDone={() => { sessionStorage.setItem('cn_booted', '1'); setBooted(true); }} />;
   }
 
   if (notesLoading || catsLoading) {
@@ -121,20 +251,26 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <AppHeader />
+      <AppHeader
+        totalNotes={notes.length}
+        unsortedCount={unsortedNotes.length}
+        reviewCount={reviewCount}
+        onOpenReview={() => navigate('review')}
+        onOpenSettings={() => navigate('settings')}
+      />
       <div className="app-shell__content">
         {activeView === 'buffer' && (
           <BufferView
             notes={unsortedNotes}
             categories={categories}
+            focusNoteId={focusNoteId}
+            focusNonce={focusNonce}
             onAssign={(noteId, categoryId) =>
               updateNote(noteId, { category_id: categoryId }).catch(() =>
                 showToast('error', 'failed to assign note')
               )
             }
-            onDelete={(id) =>
-              deleteNote(id).catch(() => showToast('error', 'failed to delete note'))
-            }
+            onDelete={handleDelete}
             onUpdate={(id, updates) =>
               updateNote(id, updates).catch(() => showToast('error', 'failed to update note'))
             }
@@ -144,12 +280,13 @@ export default function App() {
           <BoardView
             categories={categories}
             getNotesByCategory={getNotesByCategory}
+            focusNoteId={focusNoteId}
+            focusNonce={focusNonce}
+            initialCatId={boardFocusCatId}
             onUpdateNote={(id, updates) =>
               updateNote(id, updates).catch(() => showToast('error', 'failed to update note'))
             }
-            onDeleteNote={(id) =>
-              deleteNote(id).catch(() => showToast('error', 'failed to delete note'))
-            }
+            onDeleteNote={handleDelete}
             onCreateCategory={(name) =>
               createCategory(name).catch(() => showToast('error', 'failed to create directory'))
             }
@@ -159,18 +296,22 @@ export default function App() {
             onDeleteCategory={(id) =>
               deleteCategory(id).catch(() => showToast('error', 'failed to delete directory'))
             }
+            onSetCategoryColor={(id, color) =>
+              updateCategory(id, { color }).catch(() => showToast('error', 'failed to set color'))
+            }
           />
         )}
         {activeView === 'search' && (
           <SearchView
             notes={notes}
             categories={categories}
-            onNavigate={setActiveView}
+            onOpenNote={handleOpenNote}
           />
         )}
         {activeView === 'settings' && (
           <SettingsView
-            userEmail={user.email ?? ''}
+            userEmail={user.is_anonymous ? 'guest' : (user.email ?? '')}
+            isGuest={!!user.is_anonymous}
             theme={theme}
             accent={accent}
             onThemeChange={setTheme}
@@ -179,17 +320,51 @@ export default function App() {
             pushStatus={pushStatus}
             onEnableNotifications={handleEnableNotifications}
             onDisableNotifications={handleDisableNotifications}
+            onOpenArchive={handleOpenArchive}
+            archivedCount={archived.length}
+          />
+        )}
+        {activeView === 'review' && (
+          <ReviewView
+            notes={notes}
+            categories={categories}
+            onAssign={(noteId, categoryId) =>
+              updateNote(noteId, { category_id: categoryId }).catch(() =>
+                showToast('error', 'failed to assign note')
+              )
+            }
+            onDelete={handleDelete}
+            onUpdate={(id, updates) =>
+              updateNote(id, updates).catch(() => showToast('error', 'failed to update note'))
+            }
+          />
+        )}
+        {activeView === 'archive' && (
+          <ArchiveView
+            archived={archived}
+            categories={categories}
+            onRestore={(note) =>
+              unarchiveNote(note).catch(() => showToast('error', 'failed to restore note'))
+            }
+            onPurge={(id) =>
+              deleteNote(id).catch(() => showToast('error', 'failed to delete note'))
+            }
+            onBack={() => navigate('settings')}
           />
         )}
       </div>
-      {activeView !== 'settings' && (
+      {activeView !== 'settings' && activeView !== 'archive' && (
         <CaptureBar categories={categories} onCommit={handleCommit} />
       )}
       <BottomNav
         activeView={activeView}
         unsortedCount={unsortedNotes.length}
-        onTabClick={setActiveView}
+        reviewCount={reviewCount}
+        onTabClick={navigate}
       />
+
+      <CommandPalette open={paletteOpen} commands={commands} onClose={() => setPaletteOpen(false)} />
+      <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   );
 }

@@ -3,7 +3,7 @@
 }
 
 .buffer-view__label {
-  color: #2e2e2e;
+  color: var(--text-dim);
   font-size: 10px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -11,9 +11,17 @@
 }
 
 .buffer-view__empty {
-  color: var(--text-dim);
-  font-size: 12px;
-  margin-top: 48px;
+  margin-top: 56px;
   text-align: center;
-  opacity: 0.6;
+}
+
+.buffer-view__empty-line {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.buffer-view__empty-hint {
+  color: var(--text-dim);
+  font-size: 11px;
 }

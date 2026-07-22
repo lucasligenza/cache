@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { useNotes } from './useNotes';
 
 // Build a thennable Supabase chain mock
 function makeChain(result: { data: unknown; error: null | { message: string } }) {
   const chain: Record<string, unknown> = {};
-  ['select','insert','update','delete','eq','is','in','order','single'].forEach(m => {
+  ['select','insert','update','delete','eq','is','not','in','order','single'].forEach(m => {
     chain[m] = vi.fn(() => chain);
   });
   chain.then = (resolve: (v: unknown) => unknown) => Promise.resolve(resolve(result));
@@ -22,7 +22,7 @@ import { supabase } from '../lib/supabase';
 const NOTE = {
   id: '1', text: 'hello', category_id: null, created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z', color: null, remind_at: null,
-  pending_review: false, pinned: false, archived_at: null,
+  pending_review: false, pinned: false, archived_at: null, reviewed_at: null,
 };
 
 describe('useNotes', () => {
@@ -60,5 +60,34 @@ describe('useNotes', () => {
   it('does not fetch when enabled=false', () => {
     renderHook(() => useNotes(false));
     expect(supabase.from).not.toHaveBeenCalled();
+  });
+
+  it('sorts pinned notes above unpinned regardless of age', async () => {
+    const pinnedOlder = { ...NOTE, id: 'a', pinned: true, created_at: '2026-01-01T00:00:00Z' };
+    const unpinnedNewer = { ...NOTE, id: 'b', pinned: false, created_at: '2026-02-01T00:00:00Z' };
+    vi.mocked(supabase.from).mockImplementation(() =>
+      makeChain({ data: [unpinnedNewer, pinnedOlder], error: null }) as unknown as ReturnType<typeof supabase.from>
+    );
+    const { result } = renderHook(() => useNotes());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.notes[0].id).toBe('a');
+  });
+
+  it('archiveNote removes the note from the active list and returns it', async () => {
+    const { result } = renderHook(() => useNotes());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    let removed: unknown;
+    await act(async () => { removed = await result.current.archiveNote('1'); });
+    expect((removed as { id: string }).id).toBe('1');
+    expect(result.current.notes).toHaveLength(0);
+  });
+
+  it('unarchiveNote restores a note to the active list', async () => {
+    const { result } = renderHook(() => useNotes());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => {
+      await result.current.unarchiveNote({ ...NOTE, id: 'x', archived_at: '2026-01-02T00:00:00Z' });
+    });
+    expect(result.current.notes.some(n => n.id === 'x')).toBe(true);
   });
 });

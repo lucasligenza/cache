@@ -7,7 +7,7 @@ const now = new Date().toISOString();
 const mockNote: Note = {
   id: '1', text: 'buy coffee pods', created_at: now, updated_at: now,
   category_id: null, color: null, remind_at: null,
-  pending_review: false, pinned: false, archived_at: null,
+  pending_review: false, pinned: false, archived_at: null, reviewed_at: null,
 };
 const mockCategories: Category[] = [
   { id: 'cat1', name: 'Work', color: '#F5A623', created_at: now },

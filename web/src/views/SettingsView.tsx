@@ -2,6 +2,7 @@ import './SettingsView.css';
 
 interface Props {
   userEmail: string;
+  isGuest?: boolean;
   theme: 'dark' | 'light';
   accent: string;
   onThemeChange: (theme: 'dark' | 'light') => void;
@@ -10,6 +11,8 @@ interface Props {
   pushStatus: 'unsupported' | 'denied' | 'subscribed' | 'unsubscribed';
   onEnableNotifications: () => void;
   onDisableNotifications: () => void;
+  onOpenArchive: () => void;
+  archivedCount?: number;
 }
 
 const ACCENT_OPTIONS: { key: string; color: string }[] = [
@@ -21,7 +24,7 @@ const ACCENT_OPTIONS: { key: string; color: string }[] = [
   { key: 'white',  color: '#E0E0E0' },
 ];
 
-export function SettingsView({ userEmail, theme, accent, onThemeChange, onAccentChange, onSignOut, pushStatus, onEnableNotifications, onDisableNotifications }: Props) {
+export function SettingsView({ userEmail, isGuest = false, theme, accent, onThemeChange, onAccentChange, onSignOut, pushStatus, onEnableNotifications, onDisableNotifications, onOpenArchive, archivedCount = 0 }: Props) {
   return (
     <div className="settings-view">
       <div className="settings-view__header">
@@ -38,6 +41,11 @@ export function SettingsView({ userEmail, theme, accent, onThemeChange, onAccent
             <span className="settings-row__key">user:</span>
             <span className="settings-row__value">{userEmail}</span>
           </div>
+          {isGuest && (
+            <div className="settings-row">
+              <span className="settings-row__dim">guest session — sign out clears these notes</span>
+            </div>
+          )}
           <div className="settings-row">
             <button className="settings-btn" onClick={onSignOut}>
               $ logout
@@ -61,6 +69,16 @@ export function SettingsView({ userEmail, theme, accent, onThemeChange, onAccent
               onClick={() => onThemeChange('light')}
             >
               {theme === 'light' ? '[light]' : 'light'}
+            </button>
+          </div>
+        </section>
+
+        {/* Storage */}
+        <section className="settings-section">
+          <div className="settings-section__label">storage</div>
+          <div className="settings-row">
+            <button className="settings-btn" onClick={onOpenArchive}>
+              $ ls ~/.trash{archivedCount > 0 ? ` (${archivedCount})` : ''}
             </button>
           </div>
         </section>

@@ -1,9 +1,34 @@
 import './AppHeader.css';
 
-export function AppHeader() {
+interface Props {
+  totalNotes?: number;
+  unsortedCount?: number;
+  reviewCount?: number;
+  onOpenReview?: () => void;
+  onOpenSettings?: () => void;
+}
+
+export function AppHeader({ totalNotes = 0, unsortedCount = 0, reviewCount = 0, onOpenReview, onOpenSettings }: Props) {
   return (
     <header className="app-header">
       <span className="app-header__brand">~/cache</span>
+      <span className="app-header__status">
+        <span className="app-header__stat">{totalNotes} {totalNotes === 1 ? 'note' : 'notes'}</span>
+        {unsortedCount > 0 && (
+          <span className="app-header__stat app-header__stat--warn">· {unsortedCount} unsorted</span>
+        )}
+        {reviewCount > 0 && (
+          onOpenReview ? (
+            <button className="app-header__review-btn" onClick={onOpenReview}>· {reviewCount} to review</button>
+          ) : (
+            <span className="app-header__stat app-header__stat--alert">· {reviewCount} to review</span>
+          )
+        )}
+      </span>
+      <span className="app-header__cursor">▊</span>
+      {onOpenSettings && (
+        <button className="app-header__gear" onClick={onOpenSettings} aria-label="settings" title="settings">⚙</button>
+      )}
     </header>
   );
 }

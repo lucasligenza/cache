@@ -4,14 +4,22 @@ import './Toast.css';
 
 type ToastType = 'error' | 'ok' | 'warn';
 
+interface ToastOptions {
+  actionLabel?: string;
+  onAction?: () => void;
+  duration?: number;
+}
+
 interface ToastItem {
   id: number;
   type: ToastType;
   message: string;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 interface ToastContextValue {
-  showToast: (type: ToastType, message: string) => void;
+  showToast: (type: ToastType, message: string, options?: ToastOptions) => void;
 }
 
 const ToastContext = createContext<ToastContextValue>({ showToast: () => {} });
@@ -25,16 +33,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const idRef = useRef(0);
   const timersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
-  const showToast = useCallback((type: ToastType, message: string) => {
+  const showToast = useCallback((type: ToastType, message: string, options?: ToastOptions) => {
     const id = ++idRef.current;
     setToasts(prev => {
-      const next = [...prev, { id, type, message }];
+      const next = [...prev, { id, type, message, actionLabel: options?.actionLabel, onAction: options?.onAction }];
       return next.length > 3 ? next.slice(next.length - 3) : next;
     });
     const timer = setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
       timersRef.current.delete(timer);
-    }, 4000);
+    }, options?.duration ?? 4000);
     timersRef.current.add(timer);
   }, []);
 
@@ -47,6 +55,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  const runAction = useCallback((toast: ToastItem) => {
+    toast.onAction?.();
+    setToasts(prev => prev.filter(t => t.id !== toast.id));
+  }, []);
+
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
@@ -57,6 +70,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <span className="toast__label">{toast.type}</span>
               <span className="toast__message">{toast.message}</span>
             </div>
+            {toast.actionLabel && toast.onAction && (
+              <button className="toast__action" onClick={() => runAction(toast)}>
+                [{toast.actionLabel}]
+              </button>
+            )}
             <button className="toast__dismiss" onClick={() => dismiss(toast.id)}>×</button>
           </div>
         ))}

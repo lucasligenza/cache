@@ -10,6 +10,8 @@ interface Props {
   onDelete: (noteId: string) => void;
   onUpdate?: (noteId: string, updates: Partial<Note>) => void;
   showCategories?: boolean;
+  highlighted?: boolean;
+  reviewMode?: boolean;
 }
 
 const PING_PRESETS = [
@@ -20,11 +22,13 @@ const PING_PRESETS = [
   { label: '+1w', ms: 7 * 24 * 60 * 60 * 1000 },
 ];
 
-export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () => {}, showCategories = false }: Props) {
+export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () => {}, showCategories = false, highlighted = false, reviewMode = false }: Props) {
   const [exiting, setExiting] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(note.text);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [pingOpen, setPingOpen] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const cancelledRef = useRef<boolean>(false);
 
@@ -38,6 +42,7 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
       ? `ping ${formatDistanceToNow(pingDate, { addSuffix: true })}`
       : `ping overdue`
     : null;
+  const isOverdue = !!pingLabel && !pingFuture;
 
   useEffect(() => {
     if (editing && textareaRef.current) {
@@ -85,21 +90,96 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
     if (e.key === 'Escape') cancelEdit();
   };
 
-  const setPing = (ms: number) => {
-    onUpdate(note.id, { remind_at: new Date(Date.now() + ms).toISOString() });
+  const setPingAt = (iso: string | null) => {
+    onUpdate(note.id, { remind_at: iso });
   };
+  const setPing = (ms: number) => setPingAt(new Date(Date.now() + ms).toISOString());
+  const clearPing = () => { setPingAt(null); setCustomOpen(false); };
 
-  const clearPing = () => {
-    onUpdate(note.id, { remind_at: null });
+  const togglePin = () => onUpdate(note.id, { pinned: !note.pinned });
+  const toggleFlag = () => onUpdate(note.id, { pending_review: !note.pending_review });
+
+  // "keep/done": acknowledge a note in the review flow so it stops nagging.
+  const markReviewed = () => {
+    const updates: Partial<Note> = { reviewed_at: new Date().toISOString(), pending_review: false };
+    if (isOverdue) updates.remind_at = null; // resolving an overdue ping
+    onUpdate(note.id, updates);
   };
 
   const cardClasses = [
     'note-card',
     isStale ? 'note-card--stale' : '',
+    note.pinned ? 'note-card--pinned' : '',
+    highlighted ? 'note-card--focused' : '',
     exiting ? 'note-card--exiting' : '',
     editing ? 'note-card--editing' : '',
     confirmDelete ? 'note-card--confirm' : '',
   ].filter(Boolean).join(' ');
+
+  const pingRow = (
+    <div className="note-card__ping-row">
+      <span className="note-card__ping-label">ping:</span>
+      {PING_PRESETS.map(({ label, ms }) => (
+        <button
+          key={label}
+          className="note-card__chip note-card__chip--ping"
+          onMouseDown={e => e.preventDefault()}
+          onClick={() => setPing(ms)}
+        >
+          {label}
+        </button>
+      ))}
+      <button
+        className="note-card__chip note-card__chip--ping"
+        onMouseDown={e => e.preventDefault()}
+        onClick={() => setCustomOpen(o => !o)}
+      >
+        custom
+      </button>
+      {customOpen && (
+        <input
+          type="datetime-local"
+          className="note-card__ping-input"
+          onMouseDown={e => e.stopPropagation()}
+          onChange={e => { if (e.target.value) setPingAt(new Date(e.target.value).toISOString()); }}
+        />
+      )}
+      {note.remind_at && (
+        <button
+          className="note-card__chip note-card__chip--clear"
+          onMouseDown={e => e.preventDefault()}
+          onClick={clearPing}
+        >
+          ×clear
+        </button>
+      )}
+      {pingLabel && (
+        <span className={`note-card__ping-set${!pingFuture ? ' note-card__ping-set--overdue' : ''}`}>
+          {pingLabel}
+        </span>
+      )}
+    </div>
+  );
+
+  const pinChip = (
+    <button
+      className={`note-card__chip note-card__chip--pin${note.pinned ? ' note-card__chip--pinned' : ''}`}
+      onClick={togglePin}
+      title={note.pinned ? 'unpin note' : 'pin to top'}
+    >
+      {note.pinned ? '★ unpin' : 'pin'}
+    </button>
+  );
+
+  const flagChip = (
+    <button
+      className={`note-card__chip note-card__chip--flag${note.pending_review ? ' note-card__chip--flagged' : ''}`}
+      onClick={toggleFlag}
+      title={note.pending_review ? 'unflag' : 'flag for review'}
+    >
+      {note.pending_review ? '⚑ flagged' : '⚑'}
+    </button>
+  );
 
   if (editing) {
     return (
@@ -135,33 +215,7 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
           </button>
           <span className="note-card__edit-hint">enter ↵ save · esc cancel</span>
         </div>
-        <div className="note-card__ping-row">
-          <span className="note-card__ping-label">ping:</span>
-          {PING_PRESETS.map(({ label, ms }) => (
-            <button
-              key={label}
-              className="note-card__chip note-card__chip--ping"
-              onMouseDown={e => e.preventDefault()}
-              onClick={() => setPing(ms)}
-            >
-              {label}
-            </button>
-          ))}
-          {note.remind_at && (
-            <button
-              className="note-card__chip note-card__chip--clear"
-              onMouseDown={e => e.preventDefault()}
-              onClick={clearPing}
-            >
-              ×clear
-            </button>
-          )}
-          {pingLabel && (
-            <span className={`note-card__ping-set${!pingFuture ? ' note-card__ping-set--overdue' : ''}`}>
-              {pingLabel}
-            </span>
-          )}
-        </div>
+        {pingRow}
       </div>
     );
   }
@@ -198,10 +252,30 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
       </div>
       <div className="note-card__meta">
         <span className="note-card__time">{relTime}</span>
-        {pingLabel && (
-          <span className={`note-card__ping-badge${!pingFuture ? ' note-card__ping-badge--overdue' : ''}`}>
-            {pingLabel}
-          </span>
+        {pingLabel ? (
+          <button
+            className={`note-card__ping-badge${!pingFuture ? ' note-card__ping-badge--overdue' : ''}`}
+            onClick={() => setPingOpen(o => !o)}
+            title="reschedule ping"
+          >
+            {pingLabel}{!pingFuture ? ' · snooze' : ''}
+          </button>
+        ) : (
+          <button
+            className="note-card__chip note-card__chip--ping"
+            onClick={() => setPingOpen(o => !o)}
+          >
+            ping
+          </button>
+        )}
+        {reviewMode && (
+          <button
+            className="note-card__chip note-card__chip--review"
+            onClick={markReviewed}
+            title="mark reviewed"
+          >
+            {isOverdue ? 'done' : 'keep'}
+          </button>
         )}
         {showCategories && categories.map(cat => (
           <button
@@ -213,6 +287,8 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
             /{cat.name.toLowerCase()}
           </button>
         ))}
+        {flagChip}
+        {pinChip}
         <button
           className="note-card__chip"
           style={{ color: '#FF4444', borderColor: '#FF444433', marginLeft: 'auto' }}
@@ -221,6 +297,7 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
           rm
         </button>
       </div>
+      {pingOpen && pingRow}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 .capture-bar {
-  background: #141414;
-  border-top: 1px solid #252525;
+  background: var(--surface-deep);
+  border-top: 1px solid var(--border);
   padding: 14px 18px 14px;
   flex-shrink: 0;
   transition: border-top-color 0.2s, box-shadow 0.25s;
@@ -50,7 +50,24 @@
 }
 
 .capture-bar__input::placeholder {
-  color: #2c2c2c;
+  color: var(--text-dim);
+}
+
+.capture-bar__cached {
+  color: var(--accent);
+  font-size: 11px;
+  align-self: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-shadow: 0 0 8px var(--accent-glow);
+  animation: cached-flash 0.9s ease-out forwards;
+}
+
+@keyframes cached-flash {
+  0%   { opacity: 0; transform: translateY(4px); }
+  20%  { opacity: 1; transform: translateY(0); }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 .capture-bar__footer {
@@ -63,7 +80,7 @@
 
 .capture-bar__cat-btn {
   font-size: 11px;
-  border: 1px solid #2a2a2a;
+  border: 1px solid var(--border);
   padding: 2px 10px;
   border-radius: 2px;
   cursor: pointer;
@@ -81,14 +98,14 @@
 }
 
 .capture-bar__hint {
-  color: #252525;
+  color: var(--text-dim);
   font-size: 10px;
   margin-left: auto;
   transition: color 0.2s;
 }
 
 .capture-bar--focused .capture-bar__hint {
-  color: #333;
+  color: var(--text-muted);
 }
 
 .capture-bar__picker {
@@ -116,14 +133,15 @@
   width: 100%;
   text-align: left;
   transition: background 0.1s;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid var(--border);
 }
 
 .capture-bar__picker-item:last-child {
   border-bottom: none;
 }
 
-.capture-bar__picker-item:hover {
+.capture-bar__picker-item:hover,
+.capture-bar__picker-item--active {
   background: var(--surface-hover);
 }
 

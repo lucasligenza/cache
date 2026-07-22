@@ -4,9 +4,10 @@ import './LoginScreen.css';
 interface LoginScreenProps {
   onSignIn: (email: string, password: string) => Promise<{ error: string | null }>;
   onSignUp: (email: string, password: string) => Promise<{ error: string | null; successMessage?: string }>;
+  onGuest?: () => Promise<{ error: string | null }>;
 }
 
-export function LoginScreen({ onSignIn, onSignUp }: LoginScreenProps) {
+export function LoginScreen({ onSignIn, onSignUp, onGuest }: LoginScreenProps) {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -43,6 +44,23 @@ export function LoginScreen({ onSignIn, onSignUp }: LoginScreenProps) {
     }
 
     setSubmitting(false);
+  };
+
+  const handleGuest = async () => {
+    if (!onGuest) return;
+    setError(null);
+    setSuccessMessage(null);
+    setSubmitting(true);
+    const result = await onGuest();
+    if (result.error) {
+      setError(
+        /disabled/i.test(result.error)
+          ? 'guest mode is off — enable anonymous sign-ins in supabase'
+          : result.error
+      );
+      setSubmitting(false);
+    }
+    // on success, onAuthStateChange fires and App transitions automatically
   };
 
   const toggleMode = () => {
@@ -106,6 +124,21 @@ export function LoginScreen({ onSignIn, onSignUp }: LoginScreenProps) {
           {error && <p className="login-screen__error">error: {error}</p>}
           {successMessage && <p className="login-screen__success">{successMessage}</p>}
         </form>
+
+        {onGuest && (
+          <>
+            <div className="login-screen__divider">— or —</div>
+            <button
+              type="button"
+              className="login-screen__guest"
+              onClick={handleGuest}
+              disabled={submitting}
+            >
+              <span className="login-screen__submit-prefix">$</span>
+              continue as guest
+            </button>
+          </>
+        )}
 
         <div className="login-screen__toggle">
           {mode === 'login' ? (

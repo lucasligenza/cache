@@ -134,6 +134,6 @@
 }
 
 .settings-swatch--active {
-  border-color: #ffffff;
+  border-color: var(--text);
   box-shadow: 0 0 0 1px var(--swatch-color);
 }

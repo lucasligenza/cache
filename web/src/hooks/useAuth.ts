@@ -7,6 +7,7 @@ interface UseAuthReturn {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string) => Promise<{ error: string | null; successMessage?: string }>;
+  signInAsGuest: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -47,9 +48,15 @@ export function useAuth(): UseAuthReturn {
     return { error: null };
   };
 
+  const signInAsGuest = async (): Promise<{ error: string | null }> => {
+    const { error } = await supabase.auth.signInAnonymously();
+    if (error) return { error: error.message };
+    return { error: null };
+  };
+
   const signOut = async (): Promise<void> => {
     await supabase.auth.signOut();
   };
 
-  return { user, loading, signIn, signUp, signOut };
+  return { user, loading, signIn, signUp, signInAsGuest, signOut };
 }

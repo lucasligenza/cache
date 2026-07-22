@@ -1,0 +1,75 @@
+.shortcuts-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: cmd-fade 0.12s ease-out;
+}
+
+.shortcuts-panel {
+  width: min(440px, 94vw);
+  background: var(--surface);
+  border: 1px solid var(--accent-glow);
+  border-radius: 6px;
+  box-shadow: 0 0 32px var(--accent-glow-soft), 0 12px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  font-family: var(--font);
+}
+
+.shortcuts-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.shortcuts-panel__title {
+  color: var(--accent);
+  font-size: 12px;
+  text-shadow: 0 0 8px var(--accent-glow);
+}
+
+.shortcuts-panel__close {
+  color: var(--text-dim);
+  font-size: 10px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 1px 5px;
+  background: none;
+  font-family: var(--font);
+  cursor: pointer;
+}
+
+.shortcuts-panel__list {
+  padding: 6px;
+}
+
+.shortcuts-panel__row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 7px 10px;
+}
+
+.shortcuts-panel__keys {
+  color: var(--text);
+  font-size: 11px;
+  font-family: var(--font);
+  background: var(--surface-deep);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  min-width: 116px;
+  text-align: center;
+}
+
+.shortcuts-panel__desc {
+  color: var(--text-muted);
+  font-size: 11px;
+}

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Note, Category } from '../types';
 import { NoteCard } from '../components/NoteCard';
+import { ACCENT_COLORS } from '../constants';
 import './BoardView.css';
 
 interface Props {
@@ -11,11 +12,16 @@ interface Props {
   onCreateCategory: (name: string) => void;
   onRenameCategory: (id: string, name: string) => void;
   onDeleteCategory: (id: string) => void;
+  onSetCategoryColor: (id: string, color: string) => void;
+  focusNoteId?: string | null;
+  focusNonce?: number;
+  initialCatId?: string | null;
 }
 
 export function BoardView({
   categories, getNotesByCategory, onUpdateNote,
-  onDeleteNote, onCreateCategory, onRenameCategory, onDeleteCategory,
+  onDeleteNote, onCreateCategory, onRenameCategory, onDeleteCategory, onSetCategoryColor,
+  focusNoteId, focusNonce = 0, initialCatId,
 }: Props) {
   const [activeCatId, setActiveCatId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -23,6 +29,28 @@ export function BoardView({
   const [editingName, setEditingName] = useState('');
   const [newCatName, setNewCatName] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [colorPickerId, setColorPickerId] = useState<string | null>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const detailRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Open the target category + highlight the note when a search result is opened.
+  useEffect(() => {
+    if (!focusNonce || !focusNoteId) return;
+    if (initialCatId) setActiveCatId(initialCatId);
+    setHighlightId(focusNoteId);
+    const scrollT = setTimeout(() => {
+      detailRefs.current[focusNoteId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 60);
+    const clearT = setTimeout(() => setHighlightId(null), 1460);
+    return () => { clearTimeout(scrollT); clearTimeout(clearT); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusNonce]);
+
+  const renameSave = (id: string) => {
+    const name = editingName.trim();
+    if (name) onRenameCategory(id, name);
+    setEditingId(null);
+  };
 
   if (activeCatId) {
     const cat = categories.find(c => c.id === activeCatId);
@@ -36,17 +64,19 @@ export function BoardView({
           ── /{cat?.name.toLowerCase()} ── {notes.length} notes
         </div>
 
-        {notes.length === 0 && <div className="board-view__empty">no notes</div>}
+        {notes.length === 0 && <div className="board-view__empty">no notes — file one from the buffer</div>}
 
         {notes.map(note => (
-          <NoteCard
-            key={note.id}
-            note={note}
-            categories={categories.filter(c => c.id !== activeCatId)}
-            onAssign={(noteId, catId) => onUpdateNote(noteId, { category_id: catId })}
-            onDelete={onDeleteNote}
-            onUpdate={onUpdateNote}
-          />
+          <div key={note.id} ref={el => { detailRefs.current[note.id] = el; }}>
+            <NoteCard
+              note={note}
+              categories={categories.filter(c => c.id !== activeCatId)}
+              onAssign={(noteId, catId) => onUpdateNote(noteId, { category_id: catId })}
+              onDelete={onDeleteNote}
+              onUpdate={onUpdateNote}
+              highlighted={highlightId === note.id}
+            />
+          </div>
         ))}
       </div>
     );
@@ -88,7 +118,12 @@ export function BoardView({
 
           {categories.map(cat => (
             <div key={cat.id} className="board-view__settings-row">
-              <span className="board-view__swatch" style={{ background: cat.color }} />
+              <button
+                className="board-view__swatch board-view__swatch--btn"
+                style={{ background: cat.color }}
+                onClick={() => setColorPickerId(id => id === cat.id ? null : cat.id)}
+                title="change color"
+              />
 
               {editingId === cat.id ? (
                 <>
@@ -98,11 +133,11 @@ export function BoardView({
                     onChange={e => setEditingName(e.target.value)}
                     autoFocus
                     onKeyDown={e => {
-                      if (e.key === 'Enter') { onRenameCategory(cat.id, editingName.trim()); setEditingId(null); }
+                      if (e.key === 'Enter') renameSave(cat.id);
                       if (e.key === 'Escape') setEditingId(null);
                     }}
                   />
-                  <button className="board-view__settings-action" onClick={() => { onRenameCategory(cat.id, editingName.trim()); setEditingId(null); }}>
+                  <button className="board-view__settings-action" onClick={() => renameSave(cat.id)}>
                     save
                   </button>
                 </>
@@ -139,6 +174,19 @@ export function BoardView({
                     </button>
                   )}
                 </>
+              )}
+
+              {colorPickerId === cat.id && (
+                <div className="board-view__color-picker">
+                  {ACCENT_COLORS.map(color => (
+                    <button
+                      key={color}
+                      className={`board-view__color-swatch${cat.color === color ? ' board-view__color-swatch--active' : ''}`}
+                      style={{ background: color }}
+                      onClick={() => { onSetCategoryColor(cat.id, color); setColorPickerId(null); }}
+                    />
+                  ))}
+                </div>
               )}
             </div>
           ))}

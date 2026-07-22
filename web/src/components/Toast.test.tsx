@@ -44,4 +44,26 @@ describe('Toast', () => {
     expect(screen.getByText('warn')).toBeInTheDocument();
     expect(screen.getByText('missing key')).toBeInTheDocument();
   });
+
+  it('renders an action button and runs the action on click', async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    function ActionTrigger() {
+      const { showToast } = useToast();
+      return (
+        <button onClick={() => showToast('ok', 'note archived', { actionLabel: 'undo', onAction })}>
+          trigger
+        </button>
+      );
+    }
+    render(
+      <ToastProvider>
+        <ActionTrigger />
+      </ToastProvider>
+    );
+    await user.click(screen.getByText('trigger'));
+    await user.click(screen.getByText('[undo]'));
+    expect(onAction).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('note archived')).not.toBeInTheDocument();
+  });
 });
