@@ -19,4 +19,6 @@ export interface Note {
   pinned: boolean;
   archived_at: string | null;
   reviewed_at: string | null;
+  /** Client-only: captured locally but not yet confirmed by the server. Never persisted. */
+  pending?: boolean;
 }

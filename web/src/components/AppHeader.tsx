@@ -4,12 +4,13 @@ interface Props {
   totalNotes?: number;
   unsortedCount?: number;
   reviewCount?: number;
+  pendingCount?: number;
   isGuest?: boolean;
   onOpenReview?: () => void;
   onOpenSettings?: () => void;
 }
 
-export function AppHeader({ totalNotes = 0, unsortedCount = 0, reviewCount = 0, isGuest = false, onOpenReview, onOpenSettings }: Props) {
+export function AppHeader({ totalNotes = 0, unsortedCount = 0, reviewCount = 0, pendingCount = 0, isGuest = false, onOpenReview, onOpenSettings }: Props) {
   return (
     <header className="app-header">
       <span className="app-header__brand">~/cache</span>
@@ -22,6 +23,9 @@ export function AppHeader({ totalNotes = 0, unsortedCount = 0, reviewCount = 0, 
         <span className="app-header__stat">{totalNotes} {totalNotes === 1 ? 'note' : 'notes'}</span>
         {unsortedCount > 0 && (
           <span className="app-header__stat app-header__stat--warn">· {unsortedCount} unsorted</span>
+        )}
+        {pendingCount > 0 && (
+          <span className="app-header__stat app-header__stat--pending">· {pendingCount} queued</span>
         )}
         {reviewCount > 0 && (
           onOpenReview ? (

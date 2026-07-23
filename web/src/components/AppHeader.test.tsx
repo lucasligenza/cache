@@ -7,4 +7,14 @@ describe('AppHeader', () => {
     render(<AppHeader />);
     expect(screen.getByText('~/cache')).toBeInTheDocument();
   });
+
+  it('shows a queued count while notes are pending sync', () => {
+    render(<AppHeader pendingCount={2} />);
+    expect(screen.getByText(/2 queued/)).toBeInTheDocument();
+  });
+
+  it('hides the queued count when nothing is pending', () => {
+    render(<AppHeader pendingCount={0} />);
+    expect(screen.queryByText(/queued/)).not.toBeInTheDocument();
+  });
 });

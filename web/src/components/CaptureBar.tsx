@@ -1,10 +1,11 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { Category } from '../types';
+import { useToast } from './Toast';
 import './CaptureBar.css';
 
 interface Props {
   categories: Category[];
-  onCommit: (text: string, categoryId?: string) => void;
+  onCommit: (text: string, categoryId?: string) => Promise<void>;
 }
 
 export function CaptureBar({ categories, onCommit }: Props) {
@@ -14,6 +15,8 @@ export function CaptureBar({ categories, onCommit }: Props) {
   const [pickerIndex, setPickerIndex] = useState(0);
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const { showToast } = useToast();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Detect a leading `/dir ` that matches an existing category and route there.
@@ -40,25 +43,52 @@ export function CaptureBar({ categories, onCommit }: Props) {
     e.target.style.height = `${e.target.scrollHeight}px`;
   };
 
-  const handleCommit = useCallback(() => {
+  const handleCommit = useCallback(async () => {
+    if (submitting) return; // guard against double-submit while the save is in flight
     let body = text.trim();
-    let catId = selectedCatId ?? undefined;
-    if (slashMatch) {
-      const routed = slashMatch.body.trim();
-      if (!routed) return; // only "/dir" typed, nothing to cache yet
-      body = routed;
-      catId = slashMatch.cat.id;
+    let catId: string | undefined = selectedCatId ?? undefined;
+
+    // Slash-routing. Never silently drop or mutate a thought:
+    //  - known /dir with a body → route to that category
+    //  - known /dir with no body → hint, keep the text (nothing to cache yet)
+    //  - unknown /dir → file the note verbatim to buffer and say so
+    const m = text.match(/^\/(\S+)(?:\s+([\s\S]*))?$/);
+    if (m) {
+      const cat = categories.find(c => c.name.toLowerCase() === m[1].toLowerCase());
+      if (cat) {
+        const routed = (m[2] ?? '').trim();
+        if (!routed) {
+          showToast('warn', `add a note after /${cat.name.toLowerCase()}`);
+          return;
+        }
+        body = routed;
+        catId = cat.id;
+      } else {
+        showToast('warn', `no category '${m[1]}' — filed to buffer`);
+        body = text.trim();
+        catId = undefined;
+      }
     }
     if (!body) return;
-    onCommit(body, catId);
-    setText('');
-    setSelectedCatId(null);
-    setPickerOpen(false);
-    setFlash(true);
-    window.setTimeout(() => setFlash(false), 900);
-    const ta = textareaRef.current;
-    if (ta) { ta.style.height = 'auto'; ta.focus(); }
-  }, [text, selectedCatId, slashMatch, onCommit]);
+
+    setSubmitting(true);
+    try {
+      await onCommit(body, catId);
+      // Only now is the thought durably captured — safe to clear the editor.
+      setText('');
+      setSelectedCatId(null);
+      setPickerOpen(false);
+      setFlash(true);
+      window.setTimeout(() => setFlash(false), 900);
+      const ta = textareaRef.current;
+      if (ta) ta.style.height = 'auto';
+    } catch {
+      // Keep the text exactly as typed so the user can retry — nothing is lost.
+    } finally {
+      setSubmitting(false);
+      textareaRef.current?.focus();
+    }
+  }, [text, selectedCatId, categories, onCommit, showToast, submitting]);
 
   const selectByIndex = useCallback((idx: number) => {
     const opt = pickerOptions[idx];

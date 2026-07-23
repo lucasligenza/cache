@@ -45,6 +45,10 @@
   color: var(--amber);
 }
 
+.app-header__stat--pending {
+  color: var(--text-muted);
+}
+
 .app-header__stat--alert {
   color: var(--red);
 }

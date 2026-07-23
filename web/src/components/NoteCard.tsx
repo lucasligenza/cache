@@ -108,6 +108,7 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
 
   const cardClasses = [
     'note-card',
+    note.pending ? 'note-card--pending' : '',
     isStale ? 'note-card--stale' : '',
     note.pinned ? 'note-card--pinned' : '',
     highlighted ? 'note-card--focused' : '',
@@ -260,6 +261,7 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
       </div>
       <div className="note-card__meta">
         <span className="note-card__time">{relTime}</span>
+        {note.pending && <span className="note-card__chip note-card__chip--queued" title="captured — syncing when online">[queued]</span>}
         {pingLabel ? (
           <button
             className={`note-card__ping-badge${!pingFuture ? ' note-card__ping-badge--overdue' : ''}`}

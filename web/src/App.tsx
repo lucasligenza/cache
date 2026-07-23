@@ -58,6 +58,7 @@ export default function App() {
     unsortedNotes,
     loading: notesLoading,
     error: notesError,
+    pendingCount,
     createNote,
     updateNote,
     archiveNote,
@@ -65,6 +66,7 @@ export default function App() {
     deleteNote,
     getNotesByCategory,
     fetchArchived,
+    flushOutbox,
     refetch: refetchNotes,
   } = useNotes(!!user, onNotesError);
 
@@ -87,15 +89,19 @@ export default function App() {
   }, []);
 
   const handleCommit = useCallback(
-    (text: string, categoryId?: string) => {
-      createNote(text, categoryId)
-        .then(() => {
-          if (activeView !== 'buffer') {
-            const cat = categoryId ? categories.find(c => c.id === categoryId) : null;
-            showToast('ok', `cached → ${cat ? '/' + cat.name.toLowerCase() : 'buffer'}`);
-          }
-        })
-        .catch(() => showToast('error', 'failed to create note'));
+    async (text: string, categoryId?: string) => {
+      try {
+        await createNote(text, categoryId);
+        if (activeView !== 'buffer') {
+          const cat = categoryId ? categories.find(c => c.id === categoryId) : null;
+          showToast('ok', `cached → ${cat ? '/' + cat.name.toLowerCase() : 'buffer'}`);
+        }
+      } catch (e) {
+        // Local capture failed (storage disabled/full) — the note is NOT saved.
+        // Rethrow so the CaptureBar keeps the text for the user to retry.
+        showToast('error', 'could not cache note — kept in editor');
+        throw e;
+      }
     },
     [createNote, categories, activeView, showToast]
   );
@@ -183,14 +189,14 @@ export default function App() {
 
   useEffect(() => {
     const onOffline = () => showToast('warn', 'connection lost — you are offline');
-    const onOnline = () => showToast('ok', 'back online');
+    const onOnline = () => { showToast('ok', 'back online'); flushOutbox(); };
     window.addEventListener('offline', onOffline);
     window.addEventListener('online', onOnline);
     return () => {
       window.removeEventListener('offline', onOffline);
       window.removeEventListener('online', onOnline);
     };
-  }, [showToast]);
+  }, [showToast, flushOutbox]);
 
   const handleEnableNotifications = useCallback(async () => {
     const { error } = await subscribeToPush();
@@ -294,6 +300,7 @@ export default function App() {
         totalNotes={notes.length}
         unsortedCount={unsortedNotes.length}
         reviewCount={reviewCount}
+        pendingCount={pendingCount}
         isGuest={!!user.is_anonymous}
         onOpenReview={() => navigate('review')}
         onOpenSettings={() => navigate('settings')}

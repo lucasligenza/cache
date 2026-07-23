@@ -101,4 +101,14 @@ describe('NoteCard', () => {
       vi.useRealTimers();
     }
   });
+
+  it('shows a [queued] marker while the note is pending sync', () => {
+    renderCard({ note: { ...mockNote, pending: true } });
+    expect(screen.getByText('[queued]')).toBeInTheDocument();
+  });
+
+  it('does not show [queued] for a synced note', () => {
+    renderCard();
+    expect(screen.queryByText('[queued]')).not.toBeInTheDocument();
+  });
 });
