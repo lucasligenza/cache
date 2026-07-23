@@ -1,13 +1,35 @@
 # CacheNotes — Technical Reference
 
-Terminal-aesthetic note organizer. Two sibling apps sharing one Supabase backend.
+Terminal-aesthetic note organizer. An **npm-workspaces monorepo**: two sibling apps and a shared core, over one Supabase backend.
 
 ```
-CacheNotes/
-├── mobile/          ← React Native + Expo (iOS-first)
-├── web/             ← React + Vite (terminal GUI)
+CacheNotes/                 ← npm-workspaces monorepo (root package.json)
+├── packages/
+│   └── core/        ← @cache/core — shared types + business logic (web + native)
+├── web/             ← React + Vite (terminal GUI) — the live product
+├── mobile/          ← React Native + Expo (dormant; to be rebuilt on @cache/core in H2)
+├── supabase/        ← migrations, edge function (send-reminders), cron docs
 └── CLAUDE.md        ← this file
 ```
+
+> **Workspace note:** `npm install` runs at the **repo root** (workspaces: `web`, `packages/*`; `mobile` is excluded until it's rebuilt on the core). One root lockfile. See **Shared Core** and the web **Deployment** row.
+
+Longer-term direction lives in the roadmap plan (see **Docs**). Current focus: Horizon 1 — extracting `@cache/core`, observability, test coverage, auth/guest lifecycle, PWA quality.
+
+---
+
+## Shared Core (`@cache/core`)
+
+`packages/core` holds the platform-agnostic layer consumed by web (and, later, native). Exports a single barrel (`packages/core/src/index.ts`):
+
+| Module | Contents |
+|---|---|
+| `types.ts` | `Note`, `Category` data types |
+| `review.ts` | `buildReviewSet()` triage + `countReviewedToday()` + constants |
+| `outbox.ts` | offline capture queue; **storage is injected** via `setOutboxStorage()` (web falls back to `localStorage`; native passes a synchronous MMKV adapter) |
+| `exporter.ts` | pure `buildJson` / `buildMarkdown` (the browser download wrapper stays in web) |
+
+**Web consumes core through thin re-export shims** so importers are unchanged: `web/src/types.ts`, `web/src/lib/review.ts`, `web/src/lib/outbox.ts`, and `web/src/lib/exporter.ts` all just re-export from `@cache/core` (web keeps only its platform-specific bits — `ViewName`, the export download). When adding shared logic, put it in `packages/core` and re-export from the web shim.
 
 ---
 
@@ -19,10 +41,15 @@ One Supabase project used by both apps. Same schema, same credentials.
 
 | Table | Key columns |
 |---|---|
-| `notes` | `id`, `text`, `category_id`, `color`, `remind_at`, `pending_review` (manual "review later" flag), `pinned`, `archived_at`, `reviewed_at`, `created_at`, `updated_at` |
-| `categories` | `id`, `name`, `color`, `created_at` |
+| `notes` | `id`, `text`, `category_id`, `color`, `remind_at`, `pending_review` (manual "review later" flag), `pinned`, `archived_at`, `reviewed_at`, `review_muted` (never-nag), `reminded_at` (push dedup), `user_id` (defaults `auth.uid()`), `created_at`, `updated_at` |
+| `categories` | `id`, `name`, `color`, `user_id`, `created_at` |
+| `push_subscriptions` | web-push endpoints per user |
 
-Notes with `archived_at IS NULL` are active. Notes with `category_id IS NULL` are unsorted (buffer).
+Notes with `archived_at IS NULL` are active. Notes with `category_id IS NULL` are unsorted (buffer). **RLS** is enabled on every table with per-user policies (`auth.uid() = user_id`); guests are anonymous auth users.
+
+**Migrations & backend infra are committed** under `supabase/`: `migrations/` (baseline schema + `reviewed_at` / `review_muted` / `reminded_at` / `push_subscriptions`), the `send-reminders` edge function, and `cron/send-reminders.sql` (the pg_cron scheduler — kept out of the auto-run chain because it targets the prod function URL).
+
+**Reminders** — a pg_cron job hits the `send-reminders` edge function every 5 min. It queries **all** past-due reminders (`remind_at <= now`, not a window, so a missed run never drops one) and stamps `reminded_at` to dedupe (a newer `remind_at` re-arms it).
 
 ---
 
@@ -40,17 +67,19 @@ Notes with `archived_at IS NULL` are active. Notes with `category_id IS NULL` ar
 | State | React hooks — no global state library |
 | Routing | None — `activeView` state in `App.tsx` (`'buffer' | 'board' | 'search' | 'review' | 'settings' | 'archive'`) |
 | Testing | Vitest + @testing-library/react |
-| Deployment | Vercel — `web/vercel.json` rewrites all routes to `index.html` |
+| Shared core | Consumes `@cache/core` (workspace dependency) via re-export shims |
+| Deployment | Vercel — **Root Directory = `web`**; `web/vercel.json` sets `installCommand: cd .. && rm -f package-lock.json && npm install` (installs the workspace root; the `rm` dodges the npm/cli#4828 rollup optional-dep bug on Linux), `buildCommand: npm run build`, and rewrites all routes to `index.html`. Prod domain `cache-gilt.vercel.app`. |
 
 ### Commands
 
 ```bash
+# install ONCE at the repo root (workspaces) — not inside web/
+npm install
 cd web
 cp .env.example .env       # then fill in credentials
-npm install
 npm run dev                # dev server at http://localhost:5173
-npm run build              # TypeScript check + production build
-npm test                   # Vitest unit tests
+npm run build              # TypeScript check (tsc -b) + production build
+npm test                   # Vitest unit tests (also exercise @cache/core via the shims)
 ```
 
 ### Environment Variables (`web/.env`)
@@ -109,7 +138,7 @@ App
 
 ```
 web/src/
-├── types.ts                    # ViewName, Note, Category
+├── types.ts                    # ViewName (web-only) + re-exports Note/Category from @cache/core
 ├── constants.ts                # COLORS, ACCENT_COLORS, DEFAULT_CATEGORIES
 ├── index.css                   # CSS custom properties, reset, scrollbar
 ├── App.css                     # .app-shell / .app-shell__content
@@ -118,10 +147,11 @@ web/src/
 ├── lib/
 │   ├── supabase.ts             # createClient (throws if env vars missing)
 │   ├── push.ts                 # web-push subscribe/unsubscribe/status
-│   ├── review.ts               # buildReviewSet() — pure triage selector (+ countReviewedToday)
-│   └── exporter.ts             # buildJson/buildMarkdown + client-side download
+│   ├── review.ts               # → re-exports @cache/core (buildReviewSet, countReviewedToday)
+│   ├── outbox.ts               # → re-exports @cache/core (offline capture queue)
+│   └── exporter.ts             # buildJson/buildMarkdown re-exported from core + web download wrapper
 ├── hooks/
-│   ├── useNotes.ts             # CRUD + pinned-first sort + archive/unarchive + archived fetch + error state
+│   ├── useNotes.ts             # CRUD + offline outbox (durable-first capture) + pinned-first sort + archive/unarchive + pendingCount + error state
 │   ├── useCategories.ts        # CRUD + seed DEFAULT_CATEGORIES if empty + onError + error state
 │   ├── useAuth.ts              # Supabase auth: sign in/up, guest (anon), upgradeGuest
 │   └── useFocusTrap.ts         # trap Tab + restore focus for modals (palette/overlays)
@@ -147,6 +177,17 @@ web/src/
     ├── SettingsView.tsx/.css   # Account, theme, notifications, accent, ~/.trash link
     └── ArchiveView.tsx/.css    # $ ls ~/.trash — restore / permanently delete
 ```
+
+```
+packages/core/src/
+├── index.ts                    # barrel — re-exports everything below
+├── types.ts                    # Note, Category
+├── review.ts                   # buildReviewSet, countReviewedToday, constants
+├── outbox.ts                   # OutboxItem, read/write/add/remove/update, newId, setOutboxStorage (SyncStorage)
+└── exporter.ts                 # buildJson, buildMarkdown (pure)
+```
+
+> Tests for the moved modules currently live in `web/src/lib/*.test.ts` and exercise core through the shims. Relocating them into `packages/core` with its own Vitest is a follow-up.
 
 ### Design Tokens
 
@@ -179,7 +220,9 @@ CSS custom properties live in `index.css`: `--bg`, `--surface`, `--surface-deep`
 
 ### Interaction Features
 
-- **Review ritual** — the `review` view (`lib/review.ts` `buildReviewSet`) assembles a bounded daily triage from four buckets: **overdue** pings, **flagged** (`pending_review`), **stale** unsorted (>3d), and **resurfaced** (untouched >21d). Cards render as `reviewMode` `NoteCard`s; each has a **keep/done** chip that stamps `reviewed_at` (and clears an overdue ping) so it stops nagging — plus sort / snooze / archive. `reviewCount` (overdue+flagged+stale) badges the nav tab and a tappable header segment. Empty state: `$ inbox zero` + "cleared N today". The `⚑` flag toggle on any `NoteCard` feeds the flagged bucket.
+- **Review ritual** — the `review` view (`@cache/core` `buildReviewSet`, via `lib/review.ts`) assembles a bounded daily triage from four buckets: **overdue** pings, **flagged** (`pending_review`), **stale** unsorted (>3d), and **resurfaced** (untouched >21d, cap 3). Cards render as `reviewMode` `NoteCard`s; each has a **keep/done** chip that stamps `reviewed_at` (and clears an overdue ping) so it stops nagging — plus sort / snooze / mute / archive. `buildReviewSet` returns `count` (**all** buckets incl. resurfaced — the honest nav/header badge, never a silent 0) and `actionable` (overdue+flagged+stale, for header wording). Empty state: `$ inbox zero` + "cleared N today". The `⚑` flag toggle on any `NoteCard` feeds the flagged bucket.
+- **Never-nag** — a `mute` chip in review sets `notes.review_muted`, permanently excluding a note from the passive buckets (stale, resurfaced); explicit reminders/flags are unaffected. A muted note shows a `muted` chip elsewhere to un-mute.
+- **Offline-safe capture** — capture is durable-first: `CaptureBar` commits are `async` and the input clears only after the note is written to the `@cache/core` outbox (`localStorage cn_outbox_v1`). `useNotes.createNote` is queue-first (client UUID as the row id → idempotent sync; `23505` = already-synced), resolving on local durability and rejecting only if the local write fails (then the editor keeps the text). Queued notes show a `[queued]` chip + a `· N queued` header segment; `flushOutbox` runs on reconnect + app load. `/dir` feedback: an unknown category files the note verbatim to buffer with a warning; a body-less `/dir` hints instead of a silent no-op.
 - **Delete is non-destructive** — `NoteCard` `rm` calls `archiveNote` (soft delete, sets `archived_at`) and fires a toast with an `[undo]` (`unarchiveNote`). Permanent delete (`deleteNote`) lives only in `ArchiveView`.
 - **Pin** — `NoteCard` `pin` chip toggles `note.pinned`; `useNotes` sorts pinned-first (accent left-bar marks them).
 - **Reminders (ping)** — presets `+1h/+3h/+1d/+3d/+1w`, `custom` (`datetime-local`), and `snooze` on overdue — all reachable from a default card, not just edit mode. Overdue count shows red in the `AppHeader`.
@@ -208,7 +251,7 @@ Tests use a thennable chain mock for Supabase — the mock object is both chaina
 ```ts
 function makeChain(result: { data: unknown; error: null }) {
   const chain: Record<string, unknown> = {};
-  ['select','insert','update','delete','eq','is','order','single'].forEach(m => {
+  ['select','insert','update','delete','eq','is','not','in','order','single'].forEach(m => {
     chain[m] = vi.fn(() => chain);
   });
   chain.then = (resolve: (v: unknown) => unknown) => Promise.resolve(resolve(result));
@@ -216,13 +259,13 @@ function makeChain(result: { data: unknown; error: null }) {
 }
 ```
 
-Components that use `useToast()` must be wrapped in `<ToastProvider>` in tests.
+Components that use `useToast()` must be wrapped in `<ToastProvider>` in tests. Outbox-touching tests toggle `navigator.onLine` and clear `localStorage` in `beforeEach`.
 
 ---
 
 ## Mobile App (`mobile/`)
 
-React Native + Expo SDK 52 (iOS-first). On hold while web is being built.
+React Native + Expo (iOS-first). **Dormant** and diverged from web (its own copies of hooks/types). Roadmap **Horizon 2** rebuilds it on `@cache/core` for shared logic — it is **excluded from the npm workspace** until then, so it installs independently (`cd mobile && npm install`).
 
 ### Stack
 
@@ -259,5 +302,7 @@ Same color palette and JetBrains Mono font as web. Terminal aesthetic with dark 
 
 ## Docs
 
-Design spec: `docs/superpowers/specs/2026-04-08-cachenotes-web-production.md`
-Implementation plan: `docs/superpowers/plans/2026-04-08-cachenotes-web-production.md`
+- Original web design spec: `docs/superpowers/specs/2026-04-07-cache-web-design.md`
+- Production-hardening spec: `docs/superpowers/specs/2026-04-08-cachenotes-web-production.md` (untracked)
+- Build plan: `docs/superpowers/plans/2026-04-07-cache-web.md`
+- **Longer-term roadmap** — grow-to-product across web + a revived native iOS on `@cache/core`, with four horizons. Confirm scope before large horizon work.
