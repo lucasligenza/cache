@@ -1,21 +1,39 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { Category } from '../types';
+import { useToast } from './Toast';
 import './CaptureBar.css';
 
 interface Props {
   categories: Category[];
-  onCommit: (text: string, categoryId?: string) => void;
+  onCommit: (text: string, categoryId?: string) => Promise<void>;
 }
 
 export function CaptureBar({ categories, onCommit }: Props) {
   const [text, setText] = useState('');
   const [focused, setFocused] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerIndex, setPickerIndex] = useState(0);
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
+  const [flash, setFlash] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const { showToast } = useToast();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Detect a leading `/dir ` that matches an existing category and route there.
+  const slashMatch = (() => {
+    const m = text.match(/^\/(\S+)(?:\s+([\s\S]*))?$/);
+    if (!m) return null;
+    const cat = categories.find(c => c.name.toLowerCase() === m[1].toLowerCase());
+    if (!cat) return null;
+    return { cat, body: m[2] ?? '' };
+  })();
+
   const selectedCat = selectedCatId ? categories.find(c => c.id === selectedCatId) : null;
-  const catLabel = selectedCat ? `→ /${selectedCat.name.toLowerCase()}` : '→ buffer';
+  const targetCat = slashMatch ? slashMatch.cat : selectedCat;
+  const catLabel = targetCat ? `→ /${targetCat.name.toLowerCase()}` : '→ buffer';
+
+  // buffer(null) + each category, for keyboard navigation of the picker
+  const pickerOptions: (Category | null)[] = [null, ...categories];
 
   useEffect(() => { textareaRef.current?.focus(); }, []);
 
@@ -25,24 +43,81 @@ export function CaptureBar({ categories, onCommit }: Props) {
     e.target.style.height = `${e.target.scrollHeight}px`;
   };
 
-  const handleCommit = useCallback(() => {
-    if (!text.trim()) return;
-    onCommit(text.trim(), selectedCatId ?? undefined);
-    setText('');
-    setSelectedCatId(null);
+  const handleCommit = useCallback(async () => {
+    if (submitting) return; // guard against double-submit while the save is in flight
+    let body = text.trim();
+    let catId: string | undefined = selectedCatId ?? undefined;
+
+    // Slash-routing. Never silently drop or mutate a thought:
+    //  - known /dir with a body → route to that category
+    //  - known /dir with no body → hint, keep the text (nothing to cache yet)
+    //  - unknown /dir → file the note verbatim to buffer and say so
+    const m = text.match(/^\/(\S+)(?:\s+([\s\S]*))?$/);
+    if (m) {
+      const cat = categories.find(c => c.name.toLowerCase() === m[1].toLowerCase());
+      if (cat) {
+        const routed = (m[2] ?? '').trim();
+        if (!routed) {
+          showToast('warn', `add a note after /${cat.name.toLowerCase()}`);
+          return;
+        }
+        body = routed;
+        catId = cat.id;
+      } else {
+        showToast('warn', `no category '${m[1]}' — filed to buffer`);
+        body = text.trim();
+        catId = undefined;
+      }
+    }
+    if (!body) return;
+
+    setSubmitting(true);
+    try {
+      await onCommit(body, catId);
+      // Only now is the thought durably captured — safe to clear the editor.
+      setText('');
+      setSelectedCatId(null);
+      setPickerOpen(false);
+      setFlash(true);
+      window.setTimeout(() => setFlash(false), 900);
+      const ta = textareaRef.current;
+      if (ta) ta.style.height = 'auto';
+    } catch {
+      // Keep the text exactly as typed so the user can retry — nothing is lost.
+    } finally {
+      setSubmitting(false);
+      textareaRef.current?.focus();
+    }
+  }, [text, selectedCatId, categories, onCommit, showToast, submitting]);
+
+  const selectByIndex = useCallback((idx: number) => {
+    const opt = pickerOptions[idx];
+    setSelectedCatId(opt ? opt.id : null);
     setPickerOpen(false);
-    const ta = textareaRef.current;
-    if (ta) { ta.style.height = 'auto'; ta.focus(); }
-  }, [text, selectedCatId, onCommit]);
+    textareaRef.current?.focus();
+  }, [pickerOptions]);
+
+  const openPicker = () => {
+    const current = selectedCatId ? pickerOptions.findIndex(o => o?.id === selectedCatId) : 0;
+    setPickerIndex(current < 0 ? 0 : current);
+    setPickerOpen(true);
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (pickerOpen) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setPickerIndex(i => Math.min(i + 1, pickerOptions.length - 1)); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); setPickerIndex(i => Math.max(i - 1, 0)); return; }
+      if (e.key === 'Enter') { e.preventDefault(); selectByIndex(pickerIndex); return; }
+      if (e.key === 'Escape') { e.preventDefault(); setPickerOpen(false); return; }
+      if (e.key === 'Tab') { e.preventDefault(); setPickerOpen(false); return; }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleCommit();
     }
     if (e.key === 'Tab') {
       e.preventDefault();
-      setPickerOpen(o => !o);
+      openPicker();
     }
     if (e.key === 'Escape') {
       setPickerOpen(false);
@@ -70,6 +145,7 @@ export function CaptureBar({ categories, onCommit }: Props) {
           placeholder="type a note..."
           rows={1}
         />
+        {flash && <span className="capture-bar__cached">cached ✓</span>}
         <button
           className="capture-bar__send-btn"
           onClick={handleCommit}
@@ -84,8 +160,8 @@ export function CaptureBar({ categories, onCommit }: Props) {
         <div style={{ position: 'relative' }}>
           <button
             className="capture-bar__cat-btn"
-            onClick={() => setPickerOpen(o => !o)}
-            style={selectedCat ? { color: selectedCat.color, borderColor: selectedCat.color + '55' } : undefined}
+            onClick={() => (pickerOpen ? setPickerOpen(false) : openPicker())}
+            style={targetCat ? { color: targetCat.color, borderColor: targetCat.color + '55' } : undefined}
           >
             {catLabel}
           </button>
@@ -93,16 +169,16 @@ export function CaptureBar({ categories, onCommit }: Props) {
           {pickerOpen && (
             <div className="capture-bar__picker">
               <button
-                className="capture-bar__picker-item"
-                style={{ color: '#666' }}
+                className={`capture-bar__picker-item${pickerIndex === 0 ? ' capture-bar__picker-item--active' : ''}`}
+                style={{ color: 'var(--text-muted)' }}
                 onClick={() => selectCategory(null)}
               >
                 → buffer
               </button>
-              {categories.map(cat => (
+              {categories.map((cat, i) => (
                 <button
                   key={cat.id}
-                  className="capture-bar__picker-item"
+                  className={`capture-bar__picker-item${pickerIndex === i + 1 ? ' capture-bar__picker-item--active' : ''}`}
                   style={{ color: cat.color }}
                   onClick={() => selectCategory(cat.id)}
                 >
@@ -114,7 +190,7 @@ export function CaptureBar({ categories, onCommit }: Props) {
           )}
         </div>
 
-        <span className="capture-bar__hint">↵ commit · tab for category</span>
+        <span className="capture-bar__hint">↵ commit · tab for category · /dir to file</span>
       </div>
     </div>
   );

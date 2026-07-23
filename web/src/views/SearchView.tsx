@@ -7,7 +7,7 @@ import './SearchView.css';
 interface Props {
   notes: Note[];
   categories: Category[];
-  onNavigate: (view: 'buffer' | 'board') => void;
+  onOpenNote: (note: Note) => void;
 }
 
 function filterNotes(notes: Note[], query: string): Note[] {
@@ -28,7 +28,7 @@ function highlightMatch(text: string, query: string): ReactNode {
   );
 }
 
-export function SearchView({ notes, categories, onNavigate }: Props) {
+export function SearchView({ notes, categories, onOpenNote }: Props) {
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -39,14 +39,11 @@ export function SearchView({ notes, categories, onNavigate }: Props) {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') setQuery('');
+    if (e.key === 'Enter' && results.length > 0) onOpenNote(results[0]);
   };
 
   const getCategoryForNote = (note: Note) =>
     categories.find(c => c.id === note.category_id);
-
-  const handleResultClick = (note: Note) => {
-    onNavigate(note.category_id ? 'board' : 'buffer');
-  };
 
   return (
     <div className="search-view">
@@ -72,8 +69,20 @@ export function SearchView({ notes, categories, onNavigate }: Props) {
       <div className="search-view__results">
         {!query ? (
           <div className="search-view__empty">
+            <div className="search-view__cursor-line">
+              <span className="search-view__prompt">~/cache $ </span>
+              <span className="search-view__cursor">▊</span>
+              <span className="search-view__recent-label">  recent</span>
+            </div>
             {recentNotes.map(note => (
-              <div key={note.id} className="search-view__recent-item">
+              <div
+                key={note.id}
+                className="search-view__recent-item"
+                role="button"
+                tabIndex={0}
+                onClick={() => onOpenNote(note)}
+                onKeyDown={e => { if (e.key === 'Enter') onOpenNote(note); }}
+              >
                 {note.text}
               </div>
             ))}
@@ -89,8 +98,8 @@ export function SearchView({ notes, categories, onNavigate }: Props) {
                 className="search-view__result"
                 role="button"
                 tabIndex={0}
-                onClick={() => handleResultClick(note)}
-                onKeyDown={e => { if (e.key === 'Enter') handleResultClick(note); }}
+                onClick={() => onOpenNote(note)}
+                onKeyDown={e => { if (e.key === 'Enter') onOpenNote(note); }}
               >
                 <div className="search-view__result-text">
                   {highlightMatch(note.text, query)}
@@ -112,7 +121,7 @@ export function SearchView({ notes, categories, onNavigate }: Props) {
         )}
       </div>
 
-      {query && <div className="search-view__footer">esc to clear</div>}
+      {query && <div className="search-view__footer">↵ open first · esc to clear</div>}
     </div>
   );
 }

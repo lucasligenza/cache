@@ -1,6 +1,6 @@
 .note-card {
   background: var(--surface);
-  border: 1px solid #252525;
+  border: 1px solid var(--border);
   border-radius: 3px;
   padding: 10px 14px;
   margin-bottom: 8px;
@@ -10,12 +10,40 @@
 }
 
 .note-card:hover {
-  border-color: rgba(57, 255, 20, 0.18);
-  box-shadow: 0 0 12px rgba(57, 255, 20, 0.06);
+  border-color: color-mix(in srgb, var(--accent) 18%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+/* Captured locally but not yet confirmed by the server. */
+.note-card--pending {
+  border-left: 2px dashed var(--text-dim);
+}
+
+.note-card__chip--queued {
+  color: var(--text-muted);
+  border-color: var(--border);
+  cursor: default;
 }
 
 .note-card--stale {
   border-left: 2px solid rgba(255, 68, 68, 0.5);
+}
+
+/* Pinned wins over stale for the left accent bar. */
+.note-card--pinned {
+  border-left: 2px solid var(--accent);
+}
+
+/* Transient highlight when a search result is opened. */
+.note-card--focused {
+  animation: card-enter 0.22s ease both, note-focus-pulse 1.4s ease-out;
+  border-color: var(--accent);
+}
+
+@keyframes note-focus-pulse {
+  0%   { box-shadow: 0 0 0 0 var(--accent-glow); }
+  30%  { box-shadow: 0 0 16px 2px var(--accent-glow); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
 }
 
 .note-card--exiting {
@@ -66,8 +94,8 @@
 }
 
 .note-card--editing {
-  border-color: rgba(57, 255, 20, 0.4);
-  box-shadow: 0 0 12px rgba(57, 255, 20, 0.06);
+  border-color: var(--accent-glow);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 6%, transparent);
 }
 
 .note-card--confirm {
@@ -99,13 +127,54 @@
 }
 
 .note-card__confirm-label {
-  color: #FF4444;
+  color: var(--red);
   font-size: 11px;
 }
 
 .note-card__chip--danger {
-  color: #FF4444 !important;
+  color: var(--red) !important;
   border-color: rgba(255, 68, 68, 0.4) !important;
+}
+
+.note-card__chip--pin {
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+.note-card__chip--pinned {
+  color: var(--accent);
+  border-color: var(--accent-glow);
+  text-shadow: 0 0 5px var(--accent-glow);
+}
+
+.note-card__chip--flag {
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+.note-card__chip--flagged {
+  color: var(--amber);
+  border-color: rgba(245, 166, 35, 0.4);
+}
+
+.note-card__chip--review {
+  color: var(--accent);
+  border-color: var(--accent-glow);
+}
+
+.note-card__chip--review:hover {
+  background: var(--accent-glow-soft);
+}
+
+.note-card__ping-input {
+  background: var(--surface-deep);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 10px;
+  padding: 1px 6px;
+  color-scheme: dark;
 }
 
 .note-card__chip--ping {
@@ -150,6 +219,14 @@
   border-radius: 2px;
   padding: 0 6px;
   line-height: 18px;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: opacity 0.1s;
+}
+
+.note-card__ping-badge:hover {
+  opacity: 0.75;
 }
 
 .note-card__ping-badge--overdue {

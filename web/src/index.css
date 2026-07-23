@@ -1,6 +1,7 @@
 :root {
   --bg: #1a1a1a;
   --surface: #252525;
+  --surface-deep: #141414;
   --surface-hover: #2d2d2d;
   --border: #333333;
   --text: #E0E0E0;
@@ -18,6 +19,7 @@
 [data-theme="light"] {
   --bg: #F5F5F0;
   --surface: #EBEBEB;
+  --surface-deep: #E4E4DD;
   --surface-hover: #E0E0DB;
   --border: #D0D0C8;
   --text: #1A1A1A;
@@ -66,4 +68,14 @@ body {
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+}
+
+/* Respect users who prefer reduced motion — dial animations/transitions down. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

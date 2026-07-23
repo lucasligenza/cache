@@ -1,6 +1,7 @@
 .app-header {
   display: flex;
   align-items: center;
+  gap: 10px;
   padding: 0 16px;
   padding-top: env(safe-area-inset-top);
   height: calc(36px + env(safe-area-inset-top));
@@ -12,5 +13,75 @@
 .app-header__brand {
   font-family: var(--font);
   font-size: 13px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.app-header__guest {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid rgba(245, 166, 35, 0.4);
+  color: var(--amber);
+  font-family: var(--font);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.app-header__status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font);
+  font-size: 11px;
+  color: var(--text-dim);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.app-header__stat--warn {
+  color: var(--amber);
+}
+
+.app-header__stat--pending {
+  color: var(--text-muted);
+}
+
+.app-header__stat--alert {
+  color: var(--red);
+}
+
+.app-header__review-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font);
+  font-size: 11px;
+  color: var(--red);
+  cursor: pointer;
+  transition: text-shadow 0.12s;
+  white-space: nowrap;
+}
+
+.app-header__review-btn:hover {
+  text-shadow: 0 0 6px rgba(255, 68, 68, 0.5);
+}
+
+.app-header__gear {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  transition: color 0.12s;
+  flex-shrink: 0;
+}
+
+.app-header__gear:hover {
   color: var(--accent);
 }

@@ -1,0 +1,45 @@
+.review-view {
+  padding: 20px 20px 12px;
+}
+
+.review-view__label {
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.review-view__group {
+  margin-bottom: 20px;
+}
+
+.review-view__group-label {
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+}
+
+.review-view__group-label--overdue    { color: var(--red); }
+.review-view__group-label--flagged    { color: var(--amber); }
+.review-view__group-label--stale      { color: var(--text-muted); }
+.review-view__group-label--resurfaced { color: var(--accent); }
+
+.review-view__empty {
+  margin-top: 56px;
+  text-align: center;
+}
+
+.review-view__empty-line {
+  color: var(--accent);
+  font-size: 13px;
+  margin-bottom: 8px;
+  text-shadow: 0 0 8px var(--accent-glow);
+}
+
+.review-view__empty-hint {
+  color: var(--text-dim);
+  font-size: 11px;
+}

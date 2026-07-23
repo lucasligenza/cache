@@ -22,7 +22,7 @@
 
 .login-screen__prompt {
   font-size: 18px;
-  color: #39FF14;
+  color: var(--accent);
   margin: 0 0 4px 0;
   font-weight: normal;
 }
@@ -66,7 +66,7 @@
 }
 
 .login-screen__input:focus {
-  border-color: rgba(57, 255, 20, 0.4);
+  border-color: var(--accent-glow);
 }
 
 .login-screen__input::placeholder {
@@ -76,8 +76,8 @@
 .login-screen__submit {
   margin-top: 8px;
   background: transparent;
-  border: 1px solid #39FF14;
-  color: #39FF14;
+  border: 1px solid var(--accent);
+  color: var(--accent);
   font-family: 'JetBrains Mono', monospace;
   font-size: 14px;
   padding: 10px 16px;
@@ -90,7 +90,7 @@
 }
 
 .login-screen__submit:hover:not(:disabled) {
-  background: rgba(57, 255, 20, 0.08);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .login-screen__submit:disabled {
@@ -109,6 +109,41 @@
   padding: 8px 0 0 0;
 }
 
+.login-screen__divider {
+  margin: 20px 0 12px;
+  text-align: center;
+  font-size: 11px;
+  color: #444444;
+  letter-spacing: 0.1em;
+}
+
+.login-screen__guest {
+  width: 100%;
+  background: transparent;
+  border: 1px solid #333333;
+  color: #666666;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  padding: 10px 16px;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.login-screen__guest:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent-glow);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.login-screen__guest:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .login-screen__toggle {
   margin-top: 24px;
   font-size: 12px;
@@ -118,7 +153,7 @@
 .login-screen__toggle-btn {
   background: none;
   border: none;
-  color: #39FF14;
+  color: var(--accent);
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
   cursor: pointer;
@@ -128,7 +163,7 @@
 }
 
 .login-screen__toggle-btn:hover {
-  color: #7fff5a;
+  color: color-mix(in srgb, var(--accent), #fff 25%);
 }
 
 .login-screen__success {

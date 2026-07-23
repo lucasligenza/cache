@@ -54,6 +54,25 @@
   line-height: 1.4;
 }
 
+.toast__action {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 0;
+  flex-shrink: 0;
+  font-family: var(--font);
+  align-self: center;
+  text-shadow: 0 0 5px var(--accent-glow);
+  transition: opacity 0.12s ease;
+}
+
+.toast__action:hover {
+  opacity: 0.75;
+}
+
 .toast__dismiss {
   background: none;
   border: none;

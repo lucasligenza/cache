@@ -19,6 +19,7 @@ function renderBoard(overrides: Partial<Parameters<typeof BoardView>[0]> = {}) {
         onCreateCategory={vi.fn()}
         onRenameCategory={vi.fn()}
         onDeleteCategory={vi.fn()}
+        onSetCategoryColor={vi.fn()}
         {...overrides}
       />
     </ToastProvider>
