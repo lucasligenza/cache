@@ -12,34 +12,42 @@ webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 Deno.serve(async () => {
-  // Find notes with remind_at in the next 5 minutes
-  const now = new Date();
-  const soon = new Date(now.getTime() + 5 * 60 * 1000);
+  const nowIso = new Date().toISOString();
 
+  // Every past-due reminder — NOT a 5-minute window. Querying `remind_at <= now`
+  // means a missed/failed cron run never silently drops a reminder (the old
+  // `remind_at BETWEEN now AND now+5min` lost anything whose window slipped).
   const { data: notes, error: notesError } = await supabase
     .from('notes')
-    .select('id, text, user_id')
-    .gte('remind_at', now.toISOString())
-    .lte('remind_at', soon.toISOString());
+    .select('id, text, user_id, remind_at, reminded_at')
+    .is('archived_at', null)
+    .not('remind_at', 'is', null)
+    .lte('remind_at', nowIso);
 
   if (notesError) {
     return new Response(JSON.stringify({ error: notesError.message }), { status: 500 });
   }
 
-  if (!notes || notes.length === 0) {
-    return new Response(JSON.stringify({ sent: 0 }), { status: 200 });
+  // Dedupe: only notes not yet notified for their CURRENT remind_at. Rescheduling
+  // (a newer remind_at) makes reminded_at stale again and re-arms the reminder.
+  // (Column-to-column comparison isn't expressible in a PostgREST filter, so it's
+  // done here — the due set is tiny.)
+  const due = (notes ?? []).filter(
+    n => !n.reminded_at || new Date(n.reminded_at).getTime() < new Date(n.remind_at).getTime()
+  );
+
+  if (due.length === 0) {
+    return new Response(JSON.stringify({ sent: 0, processed: 0 }), { status: 200 });
   }
 
   let sent = 0;
-  for (const note of notes) {
+  for (const note of due) {
     const { data: subs } = await supabase
       .from('push_subscriptions')
       .select('endpoint, p256dh_key, auth_key')
       .eq('user_id', note.user_id);
 
-    if (!subs || subs.length === 0) continue;
-
-    for (const sub of subs) {
+    for (const sub of subs ?? []) {
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh_key, auth: sub.auth_key } },
@@ -52,5 +60,16 @@ Deno.serve(async () => {
     }
   }
 
-  return new Response(JSON.stringify({ sent }), { status: 200 });
+  // Stamp every processed reminder so it fires at most once per remind_at. Marked
+  // regardless of delivery outcome — the note still surfaces as overdue in-app, so
+  // a user with no push subscription (or a transient send failure) isn't left in a
+  // loop of retries, and can still act on it in the review view.
+  const dueIds = due.map(n => n.id);
+  const { error: markError } = await supabase
+    .from('notes')
+    .update({ reminded_at: nowIso })
+    .in('id', dueIds);
+  if (markError) console.error('Failed to mark reminded_at:', markError);
+
+  return new Response(JSON.stringify({ sent, processed: due.length }), { status: 200 });
 });

@@ -7,7 +7,7 @@ export const REVIEW_SUPPRESS_DAYS = 7;
 // A note becomes eligible to resurface once untouched this long.
 export const RESURFACE_DAYS = 21;
 export const STALE_CAP = 5;
-export const RESURFACE_CAP = 2;
+export const RESURFACE_CAP = 3;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -20,7 +20,8 @@ export interface ReviewBucket {
 
 export interface ReviewSet {
   buckets: ReviewBucket[]; // only non-empty buckets, in priority order
-  count: number;           // actionable badge = overdue + flagged + stale
+  count: number;           // badge = everything in review (incl. resurfaced) — never lies
+  actionable: number;      // the urgent subset (overdue + flagged + stale) for header wording
 }
 
 function ageDays(iso: string, now: number): number {
@@ -57,6 +58,7 @@ export function buildReviewSet(notes: Note[], now: number): ReviewSet {
   const stale = notes
     .filter(n =>
       !used.has(n.id) &&
+      !n.review_muted &&
       n.category_id === null &&
       ageDays(n.created_at, now) >= STALE_DAYS &&
       !reviewedWithin(n, now, REVIEW_SUPPRESS_DAYS)
@@ -68,6 +70,7 @@ export function buildReviewSet(notes: Note[], now: number): ReviewSet {
   const resurfaced = notes
     .filter(n =>
       !used.has(n.id) &&
+      !n.review_muted &&
       now - lastTouch(n) >= RESURFACE_DAYS * DAY_MS &&
       !reviewedWithin(n, now, RESURFACE_DAYS)
     )
@@ -84,7 +87,8 @@ export function buildReviewSet(notes: Note[], now: number): ReviewSet {
 
   return {
     buckets: rawBuckets.filter(b => b.notes.length > 0),
-    count: overdue.length + flagged.length + stale.length,
+    count: overdue.length + flagged.length + stale.length + resurfaced.length,
+    actionable: overdue.length + flagged.length + stale.length,
   };
 }
 

@@ -68,13 +68,38 @@ describe('buildReviewSet', () => {
     expect(count).toBe(1);
   });
 
-  it('resurfaces old untouched notes but does not count them in the badge', () => {
+  it('resurfaces old untouched notes and counts them in the badge (no more silent 0)', () => {
     const { buckets, count } = buildReviewSet(
       [note('a', { category_id: 'c1', created_at: daysAgo(40), updated_at: daysAgo(30) })],
       NOW
     );
     expect(buckets.map(b => b.key)).toEqual(['resurfaced']);
+    expect(count).toBe(1);
+  });
+
+  it('exposes an actionable subset (overdue+flagged+stale) distinct from the resurfaced total', () => {
+    const { count, actionable } = buildReviewSet(
+      [
+        note('urgent', { remind_at: hoursAgo(1) }),
+        note('old', { category_id: 'c1', created_at: daysAgo(40), updated_at: daysAgo(30) }),
+      ],
+      NOW
+    );
+    expect(count).toBe(2);      // badge reflects everything in review
+    expect(actionable).toBe(1); // only the overdue note "needs attention"
+  });
+
+  it('excludes a review_muted note from the passive buckets (stale, resurfaced)', () => {
+    const stale = note('s', { created_at: daysAgo(5), updated_at: daysAgo(5), review_muted: true });
+    const resurfaced = note('r', { category_id: 'c1', created_at: daysAgo(40), updated_at: daysAgo(30), review_muted: true });
+    const { buckets, count } = buildReviewSet([stale, resurfaced], NOW);
+    expect(buckets).toHaveLength(0);
     expect(count).toBe(0);
+  });
+
+  it('still surfaces a muted note that is overdue (mute only silences passive nagging)', () => {
+    const { buckets } = buildReviewSet([note('a', { remind_at: hoursAgo(1), review_muted: true })], NOW);
+    expect(buckets.map(b => b.key)).toEqual(['overdue']);
   });
 
   it('caps the stale bucket', () => {

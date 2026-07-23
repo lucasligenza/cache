@@ -103,6 +103,8 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
 
   const togglePin = () => onUpdate(note.id, { pinned: !note.pinned });
   const toggleFlag = () => onUpdate(note.id, { pending_review: !note.pending_review });
+  // "never nag": permanently exclude from passive review buckets until un-muted.
+  const toggleMute = () => onUpdate(note.id, { review_muted: !note.review_muted });
 
   // "keep/done": acknowledge a note in the review flow so it stops nagging.
   const markReviewed = () => {
@@ -295,6 +297,24 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
             title="mark reviewed"
           >
             {isOverdue ? 'done' : 'keep'}
+          </button>
+        )}
+        {reviewMode && (
+          <button
+            className="note-card__chip note-card__chip--mute"
+            onClick={toggleMute}
+            title="never nag — stop surfacing this in review"
+          >
+            mute
+          </button>
+        )}
+        {note.review_muted && (
+          <button
+            className="note-card__chip note-card__chip--muted"
+            onClick={toggleMute}
+            title="un-mute — allow this to surface in review again"
+          >
+            muted
           </button>
         )}
         {showCategories && categories.map(cat => (

@@ -25,6 +25,16 @@
   cursor: default;
 }
 
+.note-card__chip--mute {
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+.note-card__chip--muted {
+  color: var(--text-dim);
+  border-color: var(--border);
+}
+
 .note-card--stale {
   border-left: 2px solid rgba(255, 68, 68, 0.5);
 }

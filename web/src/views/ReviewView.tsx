@@ -20,13 +20,18 @@ const BUCKET_META: Record<ReviewBucketKey, { icon: string; label: string; mod: s
 
 export function ReviewView({ notes, categories, onAssign, onDelete, onUpdate }: Props) {
   const now = Date.now();
-  const { buckets, count } = buildReviewSet(notes, now);
+  const { buckets, count, actionable } = buildReviewSet(notes, now);
   const clearedToday = countReviewedToday(notes, now);
+
+  // Honest header: `count` includes resurfaced, so "all clear" only shows when the
+  // review set is truly empty. Resurfaced-only reads as a gentle "to revisit".
+  const headerLabel =
+    count === 0 ? 'all clear' : actionable > 0 ? `${count} need attention` : `${count} to revisit`;
 
   return (
     <div className="review-view">
       <div className="review-view__label">
-        ── review ── {count > 0 ? `${count} need attention` : 'all clear'}
+        ── review ── {headerLabel}
       </div>
 
       {buckets.length === 0 ? (
