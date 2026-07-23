@@ -28,8 +28,17 @@ Longer-term direction lives in the roadmap plan (see **Docs**). Current focus: H
 | `review.ts` | `buildReviewSet()` triage + `countReviewedToday()` + constants |
 | `outbox.ts` | offline capture queue; **storage is injected** via `setOutboxStorage()` (web falls back to `localStorage`; native passes a synchronous MMKV adapter) |
 | `exporter.ts` | pure `buildJson` / `buildMarkdown` (the browser download wrapper stays in web) |
+| `useNotes.ts` | `useNotesCore(deps)` — Supabase data layer + offline-sync orchestration; inject `supabase` + `isOnline()` |
+| `useCategories.ts` | `useCategoriesCore(deps)` — categories CRUD; inject `supabase` + seed defaults + accent palette |
+| `useAuth.ts` | `useAuthCore(deps)` — Supabase auth; inject `supabase` |
 
-**Web consumes core through thin re-export shims** so importers are unchanged: `web/src/types.ts`, `web/src/lib/review.ts`, `web/src/lib/outbox.ts`, and `web/src/lib/exporter.ts` all just re-export from `@cache/core` (web keeps only its platform-specific bits — `ViewName`, the export download). When adding shared logic, put it in `packages/core` and re-export from the web shim.
+Core declares `react` + `@supabase/supabase-js` as **peer deps** (the consuming app provides a single instance) and dev deps (its own type-check).
+
+**Web consumes core with a thin layer** so importers are unchanged:
+- **Lib shims** re-export: `web/src/types.ts`, `web/src/lib/{review,outbox,exporter}.ts` just re-export from `@cache/core` (web keeps only `ViewName` + the export download wrapper).
+- **Hook wrappers** inject web platform deps: `web/src/hooks/{useNotes,useCategories,useAuth}.ts` are ~10-line wrappers passing the web Supabase client, `navigator.onLine`, and web defaults into the `*Core` hooks.
+
+When adding shared logic, put it in `packages/core` and re-export / inject from the web layer.
 
 ---
 
@@ -151,10 +160,10 @@ web/src/
 │   ├── outbox.ts               # → re-exports @cache/core (offline capture queue)
 │   └── exporter.ts             # buildJson/buildMarkdown re-exported from core + web download wrapper
 ├── hooks/
-│   ├── useNotes.ts             # CRUD + offline outbox (durable-first capture) + pinned-first sort + archive/unarchive + pendingCount + error state
-│   ├── useCategories.ts        # CRUD + seed DEFAULT_CATEGORIES if empty + onError + error state
-│   ├── useAuth.ts              # Supabase auth: sign in/up, guest (anon), upgradeGuest
-│   └── useFocusTrap.ts         # trap Tab + restore focus for modals (palette/overlays)
+│   ├── useNotes.ts             # → wrapper: injects supabase + navigator.onLine into @cache/core useNotesCore
+│   ├── useCategories.ts        # → wrapper: injects supabase + DEFAULT_CATEGORIES + ACCENT_COLORS into useCategoriesCore
+│   ├── useAuth.ts              # → wrapper: injects supabase into useAuthCore
+│   └── useFocusTrap.ts         # trap Tab + restore focus for modals (palette/overlays) — web-only
 ├── components/
 │   ├── BootSequence.tsx/.css   # Typewriter lines, auto-dismisses at 2.2s
 │   ├── DataLoadingScreen.tsx/.css
@@ -184,7 +193,10 @@ packages/core/src/
 ├── types.ts                    # Note, Category
 ├── review.ts                   # buildReviewSet, countReviewedToday, constants
 ├── outbox.ts                   # OutboxItem, read/write/add/remove/update, newId, setOutboxStorage (SyncStorage)
-└── exporter.ts                 # buildJson, buildMarkdown (pure)
+├── exporter.ts                 # buildJson, buildMarkdown (pure)
+├── useNotes.ts                 # useNotesCore(deps) — data layer + offline-sync orchestration
+├── useCategories.ts            # useCategoriesCore(deps) — categories CRUD + seed
+└── useAuth.ts                  # useAuthCore(deps) — Supabase auth
 ```
 
 > Tests for the moved modules currently live in `web/src/lib/*.test.ts` and exercise core through the shims. Relocating them into `packages/core` with its own Vitest is a follow-up.
