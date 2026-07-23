@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
+import { reportError } from '../lib/telemetry';
 
 interface Props {
   children: ReactNode;
@@ -17,9 +18,9 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    if (import.meta.env.DEV) {
-      console.error('ErrorBoundary caught:', error, info);
-    }
+    // Report the crash instead of swallowing it in prod (telemetry logs in dev
+    // and POSTs to VITE_ERROR_REPORT_URL when configured).
+    reportError(error, 'react', { componentStack: info.componentStack });
   }
 
   render() {

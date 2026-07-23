@@ -98,6 +98,8 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...
 VITE_VAPID_PUBLIC_KEY=...            # web-push (reminders)
 VITE_ANTHROPIC_API_KEY=sk-ant-...   # reserved for AI sort — see note below (feature deferred, not wired)
+VITE_ERROR_REPORT_URL=...           # optional error telemetry collector — blank = inert
+VITE_RELEASE=...                    # optional build/commit id tagged on error reports
 ```
 
 > **AI sort is not implemented in web.** The env var above and the `pending_review` column are provisioned for a future Claude Haiku auto-categorize feature, but no Anthropic call exists in `web/src`. Sorting is manual (category chips / CaptureBar picker / `/dir` slash-routing).
@@ -156,6 +158,7 @@ web/src/
 ├── lib/
 │   ├── supabase.ts             # createClient (throws if env vars missing)
 │   ├── push.ts                 # web-push subscribe/unsubscribe/status
+│   ├── telemetry.ts            # provider-agnostic error reporting (VITE_ERROR_REPORT_URL; inert if unset)
 │   ├── review.ts               # → re-exports @cache/core (buildReviewSet, countReviewedToday)
 │   ├── outbox.ts               # → re-exports @cache/core (offline capture queue)
 │   └── exporter.ts             # buildJson/buildMarkdown re-exported from core + web download wrapper
@@ -251,7 +254,8 @@ CSS custom properties live in `index.css`: `--bg`, `--surface`, `--surface-deep`
 
 ### Production Infrastructure
 
-- **`ErrorBoundary`** — React class component wrapping the entire app in `main.tsx`. Shows a terminal-aesthetic crash screen (`~/cache $ FATAL ERROR` + `[reload]` button) instead of a blank page.
+- **`ErrorBoundary`** — React class component wrapping the entire app in `main.tsx`. Shows a terminal-aesthetic crash screen (`~/cache $ FATAL ERROR` + `[reload]` button) instead of a blank page. `componentDidCatch` reports the crash via `lib/telemetry`.
+- **`lib/telemetry.ts`** — provider-agnostic error telemetry. `initTelemetry()` (called in `main.tsx`) captures uncaught errors + unhandled rejections; `reportError()` dedupes + rate-limits and POSTs JSON to `VITE_ERROR_REPORT_URL` (inert if unset; logs in dev). `createTelemetry({ endpoint, send })` factory keeps it testable. Never throws.
 - **`Toast` / `useToast`** — React context notification system. `useToast()` returns `{ showToast(type, message, options?) }` where `options` = `{ actionLabel?, onAction?, duration? }` (powers the `[undo]` on archive). Types: `error` (red), `ok` (green), `warn` (amber). Auto-dismisses after 4s, stacks up to 3. Replaces all `alert()` and `console.error()` calls.
 - **`NoteCard` editing** — Click note text → green-bordered textarea; Enter or blur saves, Escape cancels. `onUpdate(noteId, { text })` called only when text changes.
 - **Inline confirmations** — NoteCard `rm` and BoardView category delete both use inline confirm state instead of `window.confirm()`.
