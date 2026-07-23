@@ -58,6 +58,7 @@ export function buildReviewSet(notes: Note[], now: number): ReviewSet {
   const stale = notes
     .filter(n =>
       !used.has(n.id) &&
+      !n.review_muted &&
       n.category_id === null &&
       ageDays(n.created_at, now) >= STALE_DAYS &&
       !reviewedWithin(n, now, REVIEW_SUPPRESS_DAYS)
@@ -69,6 +70,7 @@ export function buildReviewSet(notes: Note[], now: number): ReviewSet {
   const resurfaced = notes
     .filter(n =>
       !used.has(n.id) &&
+      !n.review_muted &&
       now - lastTouch(n) >= RESURFACE_DAYS * DAY_MS &&
       !reviewedWithin(n, now, RESURFACE_DAYS)
     )

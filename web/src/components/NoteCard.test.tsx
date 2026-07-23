@@ -131,4 +131,24 @@ describe('NoteCard', () => {
     renderCard();
     expect(screen.queryByText('[queued]')).not.toBeInTheDocument();
   });
+
+  it('review mode: the mute chip silences the note (never-nag)', () => {
+    const onUpdate = vi.fn();
+    renderCard({ onUpdate, reviewMode: true });
+    fireEvent.click(screen.getByText('mute'));
+    expect(onUpdate).toHaveBeenCalledWith('1', { review_muted: true });
+  });
+
+  it('a muted note shows an unmute chip in the normal view', () => {
+    const onUpdate = vi.fn();
+    renderCard({ onUpdate, note: { ...mockNote, review_muted: true } });
+    fireEvent.click(screen.getByText('muted'));
+    expect(onUpdate).toHaveBeenCalledWith('1', { review_muted: false });
+  });
+
+  it('does not show a mute chip on a normal note in the normal view', () => {
+    renderCard();
+    expect(screen.queryByText('mute')).not.toBeInTheDocument();
+    expect(screen.queryByText('muted')).not.toBeInTheDocument();
+  });
 });

@@ -89,6 +89,19 @@ describe('buildReviewSet', () => {
     expect(actionable).toBe(1); // only the overdue note "needs attention"
   });
 
+  it('excludes a review_muted note from the passive buckets (stale, resurfaced)', () => {
+    const stale = note('s', { created_at: daysAgo(5), updated_at: daysAgo(5), review_muted: true });
+    const resurfaced = note('r', { category_id: 'c1', created_at: daysAgo(40), updated_at: daysAgo(30), review_muted: true });
+    const { buckets, count } = buildReviewSet([stale, resurfaced], NOW);
+    expect(buckets).toHaveLength(0);
+    expect(count).toBe(0);
+  });
+
+  it('still surfaces a muted note that is overdue (mute only silences passive nagging)', () => {
+    const { buckets } = buildReviewSet([note('a', { remind_at: hoursAgo(1), review_muted: true })], NOW);
+    expect(buckets.map(b => b.key)).toEqual(['overdue']);
+  });
+
   it('caps the stale bucket', () => {
     const notes = Array.from({ length: STALE_CAP + 3 }, (_, i) =>
       note('s' + i, { created_at: daysAgo(5 + i), updated_at: daysAgo(5 + i) })
