@@ -69,16 +69,6 @@
   text-shadow: 0 0 6px rgba(255, 68, 68, 0.5);
 }
 
-.app-header__cursor {
-  color: var(--accent);
-  font-size: 12px;
-  animation: header-cursor-blink 1.1s step-end infinite;
-}
-
-@keyframes header-cursor-blink {
-  50% { opacity: 0; }
-}
-
 .app-header__gear {
   margin-left: auto;
   background: none;

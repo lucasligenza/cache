@@ -7,8 +7,8 @@
 }
 
 .capture-bar--focused {
-  border-top-color: rgba(57, 255, 20, 0.35);
-  box-shadow: 0 -8px 32px rgba(57, 255, 20, 0.1), 0 -2px 8px rgba(57, 255, 20, 0.06);
+  border-top-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  box-shadow: 0 -8px 32px color-mix(in srgb, var(--accent) 10%, transparent), 0 -2px 8px color-mix(in srgb, var(--accent) 6%, transparent);
 }
 
 .capture-bar__prompt-row {
@@ -93,7 +93,7 @@
 
 .capture-bar--focused .capture-bar__cat-btn {
   color: var(--accent);
-  border-color: rgba(57, 255, 20, 0.3);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
   text-shadow: 0 0 6px var(--accent-glow);
 }
 

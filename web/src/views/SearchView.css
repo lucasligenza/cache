@@ -107,7 +107,7 @@
 }
 
 .search-view__highlight {
-  background: rgba(57, 255, 20, 0.18);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
   color: var(--accent);
   border-radius: 2px;
   padding: 0 2px;

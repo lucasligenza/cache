@@ -35,7 +35,6 @@ export function AppHeader({ totalNotes = 0, unsortedCount = 0, reviewCount = 0, 
           )
         )}
       </span>
-      <span className="app-header__cursor">▊</span>
       {onOpenSettings && (
         <button className="app-header__gear" onClick={onOpenSettings} aria-label="settings" title="settings">⚙</button>
       )}
