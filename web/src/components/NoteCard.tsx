@@ -24,6 +24,8 @@ const PING_PRESETS = [
 
 export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () => {}, showCategories = false, highlighted = false, reviewMode = false }: Props) {
   const [exiting, setExiting] = useState(false);
+  const [filing, setFiling] = useState(false);
+  const [filingColor, setFilingColor] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(note.text);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -56,9 +58,12 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
     if (!editing) setEditText(note.text);
   }, [note.text, editing]);
 
+  // Filing to a folder gets its own motion (glow in the category color, then
+  // shrink + fly toward the folder) so it reads differently from delete.
   const handleAssign = (cat: Category) => {
-    setExiting(true);
-    setTimeout(() => onAssign(note.id, cat.id), 280);
+    setFilingColor(cat.color);
+    setFiling(true);
+    setTimeout(() => onAssign(note.id, cat.id), 340);
   };
 
   const triggerDelete = () => {
@@ -113,9 +118,14 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
     note.pinned ? 'note-card--pinned' : '',
     highlighted ? 'note-card--focused' : '',
     exiting ? 'note-card--exiting' : '',
+    filing ? 'note-card--filing' : '',
     editing ? 'note-card--editing' : '',
     confirmDelete ? 'note-card--confirm' : '',
   ].filter(Boolean).join(' ');
+
+  const cardStyle = filing && filingColor
+    ? ({ ['--filing-color']: filingColor } as React.CSSProperties)
+    : undefined;
 
   const pingRow = (
     <div className="note-card__ping-row">
@@ -184,7 +194,7 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
 
   if (editing) {
     return (
-      <div className={cardClasses}>
+      <div className={cardClasses} style={cardStyle}>
         <textarea
           ref={textareaRef}
           className="note-card__edit-area"
@@ -223,7 +233,7 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
 
   if (confirmDelete) {
     return (
-      <div className={cardClasses}>
+      <div className={cardClasses} style={cardStyle}>
         <div className="note-card__text note-card__text--dim">{note.text}</div>
         <div className="note-card__meta">
           <span className="note-card__confirm-label">rm note?</span>
@@ -247,7 +257,7 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
   }
 
   return (
-    <div className={cardClasses}>
+    <div className={cardClasses} style={cardStyle}>
       <div
         className="note-card__text"
         role="button"

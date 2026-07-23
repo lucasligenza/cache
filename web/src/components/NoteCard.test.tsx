@@ -102,6 +102,26 @@ describe('NoteCard', () => {
     }
   });
 
+  it('plays a filing animation in the category color, then assigns', () => {
+    vi.useFakeTimers();
+    try {
+      const onAssign = vi.fn();
+      const { container } = renderCard({ onAssign, showCategories: true });
+      fireEvent.click(screen.getByText('/work'));
+
+      const filing = container.querySelector('.note-card--filing') as HTMLElement | null;
+      expect(filing).not.toBeNull();
+      expect(filing!.style.getPropertyValue('--filing-color')).toBe('#F5A623');
+      // still on screen mid-animation — not assigned until it finishes
+      expect(onAssign).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(340);
+      expect(onAssign).toHaveBeenCalledWith('1', 'cat1');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('shows a [queued] marker while the note is pending sync', () => {
     renderCard({ note: { ...mockNote, pending: true } });
     expect(screen.getByText('[queued]')).toBeInTheDocument();
