@@ -4,3 +4,5 @@ export * from './review';
 export * from './outbox';
 export * from './exporter';
 export * from './useNotes';
+export * from './useCategories';
+export * from './useAuth';
