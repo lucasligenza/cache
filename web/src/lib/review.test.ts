@@ -68,13 +68,25 @@ describe('buildReviewSet', () => {
     expect(count).toBe(1);
   });
 
-  it('resurfaces old untouched notes but does not count them in the badge', () => {
+  it('resurfaces old untouched notes and counts them in the badge (no more silent 0)', () => {
     const { buckets, count } = buildReviewSet(
       [note('a', { category_id: 'c1', created_at: daysAgo(40), updated_at: daysAgo(30) })],
       NOW
     );
     expect(buckets.map(b => b.key)).toEqual(['resurfaced']);
-    expect(count).toBe(0);
+    expect(count).toBe(1);
+  });
+
+  it('exposes an actionable subset (overdue+flagged+stale) distinct from the resurfaced total', () => {
+    const { count, actionable } = buildReviewSet(
+      [
+        note('urgent', { remind_at: hoursAgo(1) }),
+        note('old', { category_id: 'c1', created_at: daysAgo(40), updated_at: daysAgo(30) }),
+      ],
+      NOW
+    );
+    expect(count).toBe(2);      // badge reflects everything in review
+    expect(actionable).toBe(1); // only the overdue note "needs attention"
   });
 
   it('caps the stale bucket', () => {
