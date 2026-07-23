@@ -1,0 +1,10 @@
+{
+  "name": "cachenotes",
+  "private": true,
+  "version": "0.1.0",
+  "description": "CacheNotes monorepo — terminal-aesthetic note organizer (web + shared core; native mobile joins later)",
+  "workspaces": [
+    "web",
+    "packages/*"
+  ]
+}

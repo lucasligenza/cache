@@ -1,0 +1,12 @@
+{
+  "name": "@cache/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Platform-agnostic core for CacheNotes: data types + business logic shared by web and native.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}
