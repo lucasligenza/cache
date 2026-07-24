@@ -5,6 +5,7 @@ import { useNotes } from './hooks/useNotes';
 import { useCategories } from './hooks/useCategories';
 import { useToast } from './components/Toast';
 import { subscribeToPush, unsubscribeFromPush, getPushStatus } from './lib/push';
+import { registerOutboxSync } from './lib/bgsync';
 import { BootSequence } from './components/BootSequence';
 import { DataLoadingScreen } from './components/DataLoadingScreen';
 import { LoginScreen } from './components/LoginScreen';
@@ -92,6 +93,9 @@ export default function App() {
     async (text: string, categoryId?: string) => {
       try {
         await createNote(text, categoryId);
+        // Captured offline → ask the SW to flush the outbox once we reconnect,
+        // even if this tab is backgrounded by then (see lib/bgsync.ts).
+        if (!navigator.onLine) void registerOutboxSync();
         if (activeView !== 'buffer') {
           const cat = categoryId ? categories.find(c => c.id === categoryId) : null;
           showToast('ok', `cached → ${cat ? '/' + cat.name.toLowerCase() : 'buffer'}`);
@@ -188,7 +192,7 @@ export default function App() {
   }, [activeView, fetchArchived]);
 
   useEffect(() => {
-    const onOffline = () => showToast('warn', 'connection lost — you are offline');
+    const onOffline = () => { showToast('warn', 'connection lost — you are offline'); void registerOutboxSync(); };
     const onOnline = () => { showToast('ok', 'back online'); flushOutbox(); };
     window.addEventListener('offline', onOffline);
     window.addEventListener('online', onOnline);
@@ -197,6 +201,18 @@ export default function App() {
       window.removeEventListener('online', onOnline);
     };
   }, [showToast, flushOutbox]);
+
+  // On a Background Sync wake-up the service worker postMessages the page
+  // (it can't reach the outbox/session itself — see sw.ts / lib/bgsync.ts);
+  // flush the outbox when it does.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const onMessage = (e: MessageEvent) => {
+      if ((e.data as { type?: string } | null)?.type === 'cn-flush') flushOutbox();
+    };
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, [flushOutbox]);
 
   const handleEnableNotifications = useCallback(async () => {
     const { error } = await subscribeToPush();

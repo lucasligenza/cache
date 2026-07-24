@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full-bleed, fully opaque source for raster PWA-asset generation (npm run
+       generate-pwa-assets). No rounded/transparent corners → maskable & apple
+       icons come out full-bleed dark instead of masking through to transparency.
+       The scalable rounded look lives in icon.svg (SVG manifest + favicon entry). -->
+  <rect width="512" height="512" fill="#1a1a1a"/>
+  <text x="256" y="350" font-family="monospace" font-size="280" font-weight="bold" fill="#39FF14" text-anchor="middle">$</text>
+</svg>
