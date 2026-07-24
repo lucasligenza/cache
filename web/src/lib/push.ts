@@ -1,7 +1,5 @@
 import { supabase } from './supabase';
 
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string;
-
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -17,7 +15,8 @@ export async function subscribeToPush(): Promise<{ error: string | null }> {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     return { error: 'Push notifications not supported in this browser' };
   }
-  if (!VAPID_PUBLIC_KEY) {
+  const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string;
+  if (!vapidKey) {
     return { error: 'VITE_VAPID_PUBLIC_KEY not set' };
   }
 
@@ -30,7 +29,7 @@ export async function subscribeToPush(): Promise<{ error: string | null }> {
     const reg = await navigator.serviceWorker.ready;
     const subscription = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as unknown as ArrayBuffer,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey) as unknown as ArrayBuffer,
     });
 
     const { endpoint } = subscription;
