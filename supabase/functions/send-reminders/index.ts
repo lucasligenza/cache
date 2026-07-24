@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import webpush from 'npm:web-push';
+import { selectDue, reminderPayload } from './due.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -28,13 +29,12 @@ Deno.serve(async () => {
     return new Response(JSON.stringify({ error: notesError.message }), { status: 500 });
   }
 
-  // Dedupe: only notes not yet notified for their CURRENT remind_at. Rescheduling
-  // (a newer remind_at) makes reminded_at stale again and re-arms the reminder.
-  // (Column-to-column comparison isn't expressible in a PostgREST filter, so it's
-  // done here — the due set is tiny.)
-  const due = (notes ?? []).filter(
-    n => !n.reminded_at || new Date(n.reminded_at).getTime() < new Date(n.remind_at).getTime()
-  );
+  // Dedupe + past-due cutoff live in selectDue (pure, unit-tested in due.test.ts):
+  // only notes past due and not yet notified for their CURRENT remind_at.
+  // Rescheduling (a newer remind_at) makes reminded_at stale again and re-arms it.
+  // (Column-to-column comparison isn't expressible in a PostgREST filter, so the
+  // dedup is done here — the due set is tiny.)
+  const due = selectDue(notes ?? [], nowIso);
 
   if (due.length === 0) {
     return new Response(JSON.stringify({ sent: 0, processed: 0 }), { status: 200 });
@@ -51,7 +51,7 @@ Deno.serve(async () => {
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh_key, auth: sub.auth_key } },
-          JSON.stringify({ title: 'cache reminder', body: note.text.slice(0, 100) })
+          reminderPayload(note)
         );
         sent++;
       } catch (err) {

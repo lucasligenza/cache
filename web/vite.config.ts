@@ -54,5 +54,13 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     globals: true,
+    // Cover the web app plus the pure server-side reminder logic in the Deno edge
+    // function (supabase/functions/**), which has no runtime of its own to test in.
+    include: [
+      'src/**/*.{test,spec}.{ts,tsx}',
+      '../supabase/functions/**/*.{test,spec}.ts',
+    ],
   },
+  // Allow Vite to transform the edge-function test file, which lives above web/.
+  server: { fs: { allow: ['..'] } },
 });
