@@ -7,6 +7,7 @@ import {
   addToOutbox,
   removeFromOutbox,
   updateOutboxItem,
+  setOutboxScope,
   newId,
 } from './outbox';
 
@@ -21,6 +22,8 @@ export interface NotesDeps {
   isOnline?: () => boolean;
   enabled?: boolean;
   onError?: (msg: string) => void;
+  /** Current user id — scopes the offline outbox so queues never bleed across accounts. */
+  userId?: string | null;
 }
 
 // Pinned notes float to the top; within each group, newest first.
@@ -66,6 +69,9 @@ export function useNotesCore(deps: NotesDeps) {
   const db = () => depsRef.current.supabase;
   const online = () => depsRef.current.isOnline?.() ?? true;
   const fail = (msg: string) => depsRef.current.onError?.(msg);
+  // Bind the outbox to the current user before every queue touch, so a queued
+  // note can only ever sync under the account that captured it (no bleed).
+  const scopeOutbox = () => setOutboxScope(depsRef.current.userId ?? null);
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [archived, setArchived] = useState<Note[]>([]);
@@ -82,6 +88,7 @@ export function useNotesCore(deps: NotesDeps) {
   const inFlight = useRef<Set<string>>(new Set());
 
   const fetch = useCallback(async () => {
+    scopeOutbox();
     const { data, error } = await db()
       .from('notes')
       .select('*')
@@ -107,6 +114,7 @@ export function useNotesCore(deps: NotesDeps) {
   // client-generated id, so a re-sync after a crash hits a unique-violation
   // (23505) which we treat as "already synced". Stays queued on a real error.
   const syncItem = useCallback(async (item: OutboxItem): Promise<Note | null> => {
+    scopeOutbox();
     if (inFlight.current.has(item.id)) return null;
     inFlight.current.add(item.id);
     try {
@@ -132,6 +140,7 @@ export function useNotesCore(deps: NotesDeps) {
   // No-op while offline — items stay queued until the next reconnect.
   const flushOutbox = useCallback(async () => {
     if (!online()) return;
+    scopeOutbox();
     for (const item of readOutbox()) {
       await syncItem(item);
     }
@@ -139,11 +148,16 @@ export function useNotesCore(deps: NotesDeps) {
 
   useEffect(() => { if (enabled) fetch().then(() => flushOutbox()); }, [fetch, enabled, flushOutbox]);
 
+  // On sign-out (enabled → false) drop the previous user's notes from memory so
+  // nothing lingers between accounts; the next sign-in re-fetches under its own uid.
+  useEffect(() => { if (!enabled) { setNotes([]); setArchived([]); } }, [enabled]);
+
   // Capture is durable-first: the note is written to the local outbox (durable)
   // and shown immediately; the promise resolves as soon as it is *locally* safe.
   // It rejects ONLY if the local write itself fails — the sole case where the
   // editor text must be preserved. A failed/offline server sync is not a loss.
   const createNote = useCallback(async (text: string, category_id?: string): Promise<Note> => {
+    scopeOutbox();
     const id = newId();
     const created_at = new Date().toISOString();
     const cat = category_id || null;
@@ -162,6 +176,7 @@ export function useNotesCore(deps: NotesDeps) {
   }, [syncItem]);
 
   const updateNote = useCallback(async (id: string, updates: Partial<Note>) => {
+    scopeOutbox();
     setNotes(prev => sortNotes(prev.map(n => n.id === id ? { ...n, ...updates, updated_at: new Date().toISOString() } : n)));
     // If the note hasn't synced yet, mirror the edit into the outbox so the
     // eventual insert carries the latest text/category, not the original draft.
@@ -181,6 +196,7 @@ export function useNotesCore(deps: NotesDeps) {
   // Soft-delete: removes the note from the active list and returns it so the
   // caller can offer an undo. Also stages it into the archived list.
   const archiveNote = useCallback(async (id: string): Promise<Note | null> => {
+    scopeOutbox();
     const removed = notesRef.current.find(n => n.id === id) ?? null;
     const stamp = new Date().toISOString();
     removeFromOutbox(id); // don't let a pending sync resurrect a deleted note
@@ -207,6 +223,7 @@ export function useNotesCore(deps: NotesDeps) {
 
   // Permanent, irreversible delete (used only from the archive view).
   const deleteNote = useCallback(async (id: string) => {
+    scopeOutbox();
     removeFromOutbox(id);
     setNotes(prev => prev.filter(n => n.id !== id));
     setArchived(prev => prev.filter(n => n.id !== id));

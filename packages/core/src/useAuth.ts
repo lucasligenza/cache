@@ -11,7 +11,7 @@ export interface UseAuthReturn {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string) => Promise<{ error: string | null; successMessage?: string }>;
   signInAsGuest: () => Promise<{ error: string | null }>;
-  upgradeGuest: (email: string, password: string) => Promise<{ error: string | null }>;
+  upgradeGuest: (email: string, password: string) => Promise<{ error: string | null; successMessage?: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -24,12 +24,24 @@ export function useAuthCore(deps: AuthDeps): UseAuthReturn {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
+    // Resolve the current session immediately on mount — onAuthStateChange only
+    // fires on *changes*, so without this `loading` would hang (and the app would
+    // flash the login screen) until the first event.
+    auth().getSession().then(({ data }) => {
+      if (!mounted) return;
+      setUser(data.session?.user ?? null);
+      setLoading(false);
+    });
+
     const { data: { subscription } } = auth().onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -64,11 +76,23 @@ export function useAuthCore(deps: AuthDeps): UseAuthReturn {
   };
 
   // Convert the current anonymous user into a permanent account, preserving
-  // their notes (same user_id). Supabase may require email confirmation.
-  const upgradeGuest = async (email: string, password: string): Promise<{ error: string | null }> => {
-    const { error } = await auth().updateUser({ email, password });
+  // their notes (same user_id). If the project requires email confirmation, the
+  // change is *pending* (not applied) until the user clicks the link — Supabase
+  // signals this via a populated `new_email` on the returned user. Surface that
+  // instead of claiming success outright (mirrors signUp's successMessage).
+  const upgradeGuest = async (
+    email: string,
+    password: string
+  ): Promise<{ error: string | null; successMessage?: string }> => {
+    const { data, error } = await auth().updateUser({ email, password });
     if (error) return { error: error.message };
-    return { error: null };
+    const pending = !!(data?.user as { new_email?: string } | null | undefined)?.new_email;
+    return {
+      error: null,
+      successMessage: pending
+        ? 'account saved — check your email to confirm your new address'
+        : undefined,
+    };
   };
 
   const signOut = async (): Promise<void> => {

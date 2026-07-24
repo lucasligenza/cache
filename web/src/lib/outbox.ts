@@ -11,5 +11,6 @@ export {
   updateOutboxItem,
   newId,
   setOutboxStorage,
+  setOutboxScope,
 } from '@cache/core';
 export type { OutboxItem, SyncStorage } from '@cache/core';

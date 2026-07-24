@@ -43,20 +43,58 @@ function storage(): SyncStorage {
   throw new Error('outbox: no storage configured — call setOutboxStorage()');
 }
 
-export function readOutbox(): OutboxItem[] {
+// The queue is scoped to the signed-in user so one account never flushes another's
+// queued notes (the outbox lives in a single shared localStorage; without scoping,
+// a guest's offline captures would sync under whoever signs in next). The active
+// storage key is `${OUTBOX_KEY}:${uid}`, or the bare legacy key when no user is set.
+let scope: string | null = null;
+
+function key(): string {
+  return scope ? `${OUTBOX_KEY}:${scope}` : OUTBOX_KEY;
+}
+
+function parse(raw: string | null): OutboxItem[] {
+  if (!raw) return [];
   try {
-    const raw = storage().getItem(OUTBOX_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as OutboxItem[]) : [];
+    const p = JSON.parse(raw);
+    return Array.isArray(p) ? (p as OutboxItem[]) : [];
   } catch {
     return [];
   }
 }
 
+/**
+ * Bind the outbox to the current user id (null when signed out). Call this before
+ * any outbox operation. On the first switch to a user it performs a one-time
+ * migration of any pre-scoping legacy queue (see migrateLegacyOutbox).
+ */
+export function setOutboxScope(userId: string | null): void {
+  if (userId === scope) return;
+  scope = userId;
+  if (scope) migrateLegacyOutbox();
+}
+
+// One-time transition off the old unscoped key. When a user first becomes active,
+// adopt any items left in the legacy `cn_outbox_v1` into their scoped queue (the
+// common case: the same person reloading into the new build). If they already have
+// a scoped queue, just drop the legacy key rather than risk folding in another
+// session's items. Idempotent — the legacy key is removed either way.
+function migrateLegacyOutbox(): void {
+  const s = storage();
+  const legacy = parse(s.getItem(OUTBOX_KEY));
+  if (legacy.length === 0) return;
+  const scoped = parse(s.getItem(key()));
+  if (scoped.length === 0) s.setItem(key(), JSON.stringify(legacy));
+  s.removeItem(OUTBOX_KEY);
+}
+
+export function readOutbox(): OutboxItem[] {
+  return parse(storage().getItem(key()));
+}
+
 /** Persist the queue. May throw (quota exceeded / storage disabled) — callers rely on this. */
 export function writeOutbox(items: OutboxItem[]): void {
-  storage().setItem(OUTBOX_KEY, JSON.stringify(items));
+  storage().setItem(key(), JSON.stringify(items));
 }
 
 /** Append an item and persist. Rethrows on write failure so capture can preserve the editor text. */

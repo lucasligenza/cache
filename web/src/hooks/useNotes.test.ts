@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useNotes } from './useNotes';
-import { readOutbox, writeOutbox } from '../lib/outbox';
+import { readOutbox, writeOutbox, setOutboxScope } from '../lib/outbox';
 
 // Captures every insert payload across all chains so ordering can be asserted.
 const insertCalls: Array<Record<string, unknown>> = [];
@@ -53,6 +53,7 @@ describe('useNotes', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    setOutboxScope(null);
     insertCalls.length = 0;
     setOnline(true);
     useChain({ data: [NOTE], error: null });
@@ -71,6 +72,17 @@ describe('useNotes', () => {
     const { result } = renderHook(() => useNotes());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.unsortedNotes).toHaveLength(1);
+  });
+
+  it('queues offline captures under the current user’s scoped key (no bleed)', async () => {
+    setOnline(false);
+    const { result } = renderHook(() => useNotes(true, undefined, 'user-a'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => { await result.current.createNote('scoped thought'); });
+
+    // Stored under the per-user key, never the legacy unscoped key.
+    expect(localStorage.getItem('cn_outbox_v1:user-a')).toContain('scoped thought');
+    expect(localStorage.getItem('cn_outbox_v1')).toBeNull();
   });
 
   it('getNotesByCategory filters by category', async () => {

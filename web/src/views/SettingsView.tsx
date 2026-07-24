@@ -17,7 +17,7 @@ interface Props {
   archivedCount?: number;
   onExportJson: () => void;
   onExportMarkdown: () => void;
-  onUpgradeAccount?: (email: string, password: string) => Promise<{ error: string | null }>;
+  onUpgradeAccount?: (email: string, password: string) => Promise<{ error: string | null; successMessage?: string }>;
 }
 
 const ACCENT_OPTIONS: { key: string; color: string }[] = [
@@ -41,9 +41,9 @@ export function SettingsView({ userEmail, isGuest = false, theme, accent, onThem
     if (!onUpgradeAccount) return;
     if (password.length < 8) { setUpgradeMsg('password must be at least 8 characters'); return; }
     setSubmitting(true);
-    const { error } = await onUpgradeAccount(email, password);
+    const { error, successMessage } = await onUpgradeAccount(email, password);
     setSubmitting(false);
-    setUpgradeMsg(error ?? 'account created — your notes are saved');
+    setUpgradeMsg(error ?? successMessage ?? 'account created — your notes are saved');
   };
 
   return (
@@ -64,7 +64,7 @@ export function SettingsView({ userEmail, isGuest = false, theme, accent, onThem
           </div>
           {isGuest && (
             <div className="settings-row">
-              <span className="settings-row__dim">guest session — sign out clears these notes</span>
+              <span className="settings-row__dim">guest session — sign out and you lose access to these notes</span>
             </div>
           )}
           {isGuest && onUpgradeAccount && (

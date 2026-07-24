@@ -69,7 +69,7 @@ export default function App() {
     fetchArchived,
     flushOutbox,
     refetch: refetchNotes,
-  } = useNotes(!!user, onNotesError);
+  } = useNotes(!!user, onNotesError, user?.id ?? null);
 
   const {
     categories,
@@ -164,7 +164,7 @@ export default function App() {
 
   const handleUpgradeAccount = useCallback(async (email: string, password: string) => {
     const result = await upgradeGuest(email, password);
-    if (!result.error) showToast('ok', 'account created — notes saved');
+    if (!result.error) showToast('ok', result.successMessage ?? 'account created — notes saved');
     return result;
   }, [upgradeGuest, showToast]);
 
