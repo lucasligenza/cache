@@ -2,7 +2,7 @@
   "name": "cachenotes",
   "private": true,
   "version": "0.1.0",
-  "description": "CacheNotes monorepo — terminal-aesthetic note organizer (web + shared core; native mobile joins later)",
+  "description": "CacheNotes monorepo — terminal-aesthetic note organizer (web + shared core; native Expo app in mobile/ consumes @cache/core via a separate install)",
   "workspaces": [
     "web",
     "packages/*"
