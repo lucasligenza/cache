@@ -22,7 +22,7 @@ export function createMemoryStorage(): SyncStorage {
  * @cache/core's outbox requires SyncStorage so capture can prove the note is
  * written before the editor clears. Web uses localStorage; the core comment
  * mentions MMKV for native, but MMKV needs a custom dev client. expo-sqlite's
- * sync API ships in Expo Go (SDK 54) and satisfies the same contract.
+ * sync API ships in Expo Go (SDK 57) and satisfies the same contract.
  */
 export function createSqliteStorage(): SyncStorage {
   // Lazy require so vitest (and any non-RN runner) can import other lib files

@@ -7,12 +7,12 @@ CacheNotes/                 ← npm-workspaces monorepo (root package.json)
 ├── packages/
 │   └── core/        ← @cache/core — shared types + business logic (web + native)
 ├── web/             ← React + Vite (terminal GUI) — the live product
-├── mobile/          ← React Native + Expo SDK 54 (iOS capture on @cache/core; installs separately — see Mobile)
+├── mobile/          ← React Native + Expo SDK 57 (iOS capture on @cache/core; installs separately — see Mobile)
 ├── supabase/        ← migrations, edge function (send-reminders), cron docs
 └── CLAUDE.md        ← this file
 ```
 
-> **Workspace note:** `npm install` runs at the **repo root** (workspaces: `web`, `packages/*`). `mobile/` is **not** a workspace member: Expo SDK 54 needs React 19 while web is React 18, and hoisting those together breaks both. Native installs on its own (`cd mobile && npm install`) and depends on `"@cache/core": "file:../packages/core"`. See **Mobile App**.
+> **Workspace note:** `npm install` runs at the **repo root** (workspaces: `web`, `packages/*`). `mobile/` is **not** a workspace member: Expo SDK 57 needs React 19.2 while web is React 18, and hoisting those together breaks both. Native installs on its own (`cd mobile && npm install`) and depends on `"@cache/core": "file:../packages/core"`. See **Mobile App**.
 
 Longer-term direction lives in the roadmap plan (see **Docs**). Current focus: Horizon 1 — extracting `@cache/core`, observability, test coverage, auth/guest lifecycle, PWA quality.
 
@@ -283,13 +283,13 @@ Components that use `useToast()` must be wrapped in `<ToastProvider>` in tests. 
 
 ## Mobile App (`mobile/`)
 
-React Native + Expo SDK 54 (iOS-first). **Horizon 2 slice 1:** wired to `@cache/core` for capture / notes / categories / auth. Buffer + board screens still live in this package (not feature-parity with web). Install separately (`cd mobile && npm install`) — not a root workspace member (React 19 vs web's React 18).
+React Native + Expo SDK 57 (iOS-first). **Horizon 2 slice 1:** wired to `@cache/core` for capture / notes / categories / auth. Buffer + board screens still live in this package (not feature-parity with web). Install separately (`cd mobile && npm install`) — not a root workspace member (React 19.2 vs web's React 18).
 
 ### Stack
 
 | Concern | Choice |
 |---|---|
-| Framework | React Native + Expo SDK 54 |
+| Framework | React Native + Expo SDK 57 (React 19.2 / RN 0.86; Expo Go **must** be SDK 57) |
 | Navigation | react-native-pager-view (swipe: buffer / capture / board) |
 | Font | JetBrains Mono (`@expo-google-fonts/jetbrains-mono`) |
 | Backend | Same Supabase project as web, via `@cache/core` |
@@ -302,7 +302,7 @@ React Native + Expo SDK 54 (iOS-first). **Horizon 2 slice 1:** wired to `@cache/
 ```bash
 cd mobile
 npm install
-npx expo start           # QR into Expo Go (default for this slice)
+npx expo start           # QR into Expo Go SDK 57 (required — SDK 54 Go will refuse this project)
 npx expo start --ios     # iOS simulator (Xcode)
 npm test                 # vitest (capture routing, outbox adapter, keyboard inset)
 npm run typecheck

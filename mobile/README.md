@@ -1,6 +1,6 @@
 # Cache (native)
 
-Terminal-aesthetic note inbox for iOS, built with React Native + Expo SDK 54.
+Terminal-aesthetic note inbox for iOS, built with React Native + Expo SDK 57.
 This app consumes shared `@cache/core` (auth, notes, categories, outbox) — the same
 Supabase-backed buffer web uses.
 
@@ -9,8 +9,8 @@ buffer. Saving does **not** start a review, todo list, or reminder.
 
 ## Why `mobile/` is not in the root npm workspaces
 
-The root workspace (`web` + `packages/core`) is React 18. Expo SDK 54 needs
-React 19 + React Native. Hoisting those together breaks both apps, so mobile
+The root workspace (`web` + `packages/core`) is React 18. Expo SDK 57 needs
+React 19.2 + React Native 0.86. Hoisting those together breaks both apps, so mobile
 still installs on its own and pulls core via `"@cache/core": "file:../packages/core"`.
 
 ```bash
@@ -48,15 +48,17 @@ Then pick one:
 
 | Path | When to use |
 |---|---|
-| **Expo Go** (iPhone) | Default for this slice. Install Expo Go, scan the QR code. No custom native modules. |
+| **Expo Go SDK 57** (iPhone) | Default for this slice. Install / update Expo Go to **SDK 57** (this project will not open in SDK 54 Go). Scan the QR from `npx expo start`. No custom native modules. |
 | **iOS Simulator** | Mac + Xcode: `npx expo start --ios` |
 | **Dev client / `expo prebuild`** | **Not required** for capture. Needed later if we add modules Expo Go does not ship (e.g. MMKV). Do not App Store / TestFlight submit from this work. |
 
 Same commands as scripts: `npm start`, `npm run ios`.
 
 Expo Go vs a dev client: this capture path uses `expo-sqlite` (sync API) +
-AsyncStorage + NetInfo, all available in Expo Go on SDK 54. A custom dev client
-is only necessary if you add native code Expo Go does not include.
+AsyncStorage + NetInfo, all available in Expo Go on SDK 57. A custom dev client
+is only necessary if you add native code Expo Go does not include. If Expo Go
+on the App Store is still an older SDK, install the SDK 57 Go via Expo CLI /
+`eas go` so it matches this project.
 
 ## One-handed capture
 
