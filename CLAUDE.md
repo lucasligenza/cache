@@ -7,12 +7,12 @@ CacheNotes/                 ← npm-workspaces monorepo (root package.json)
 ├── packages/
 │   └── core/        ← @cache/core — shared types + business logic (web + native)
 ├── web/             ← React + Vite (terminal GUI) — the live product
-├── mobile/          ← React Native + Expo (dormant; to be rebuilt on @cache/core in H2)
+├── mobile/          ← React Native + Expo SDK 54 (iOS capture on @cache/core; installs separately — see Mobile)
 ├── supabase/        ← migrations, edge function (send-reminders), cron docs
 └── CLAUDE.md        ← this file
 ```
 
-> **Workspace note:** `npm install` runs at the **repo root** (workspaces: `web`, `packages/*`; `mobile` is excluded until it's rebuilt on the core). One root lockfile. See **Shared Core** and the web **Deployment** row.
+> **Workspace note:** `npm install` runs at the **repo root** (workspaces: `web`, `packages/*`). `mobile/` is **not** a workspace member: Expo SDK 54 needs React 19 while web is React 18, and hoisting those together breaks both. Native installs on its own (`cd mobile && npm install`) and depends on `"@cache/core": "file:../packages/core"`. See **Mobile App**.
 
 Longer-term direction lives in the roadmap plan (see **Docs**). Current focus: Horizon 1 — extracting `@cache/core`, observability, test coverage, auth/guest lifecycle, PWA quality.
 
@@ -26,7 +26,7 @@ Longer-term direction lives in the roadmap plan (see **Docs**). Current focus: H
 |---|---|
 | `types.ts` | `Note`, `Category` data types |
 | `review.ts` | `buildReviewSet()` triage + `countReviewedToday()` + constants |
-| `outbox.ts` | offline capture queue; **storage is injected** via `setOutboxStorage()` (web falls back to `localStorage`; native passes a synchronous MMKV adapter) |
+| `outbox.ts` | offline capture queue; **storage is injected** via `setOutboxStorage()` (web falls back to `localStorage`; native passes expo-sqlite sync, or MMKV in a future dev-client build) |
 | `exporter.ts` | pure `buildJson` / `buildMarkdown` (the browser download wrapper stays in web) |
 | `useNotes.ts` | `useNotesCore(deps)` — Supabase data layer + offline-sync orchestration; inject `supabase` + `isOnline()` |
 | `useCategories.ts` | `useCategoriesCore(deps)` — categories CRUD; inject `supabase` + seed defaults + accent palette |
@@ -38,7 +38,9 @@ Core declares `react` + `@supabase/supabase-js` as **peer deps** (the consuming 
 - **Lib shims** re-export: `web/src/types.ts`, `web/src/lib/{review,outbox,exporter}.ts` just re-export from `@cache/core` (web keeps only `ViewName` + the export download wrapper).
 - **Hook wrappers** inject web platform deps: `web/src/hooks/{useNotes,useCategories,useAuth}.ts` are ~10-line wrappers passing the web Supabase client, `navigator.onLine`, and web defaults into the `*Core` hooks.
 
-When adding shared logic, put it in `packages/core` and re-export / inject from the web layer.
+**Native (`mobile/`) does the same injection:** `mobile/src/hooks/{useNotes,useCategories,useAuth}.ts` pass the Expo Supabase client, a NetInfo `isOnline()`, and `setOutboxStorage()` (expo-sqlite sync). Types re-export from `@cache/core` in `mobile/src/types/index.ts`.
+
+When adding shared logic, put it in `packages/core` and re-export / inject from the web and native layers.
 
 ---
 
@@ -281,34 +283,45 @@ Components that use `useToast()` must be wrapped in `<ToastProvider>` in tests. 
 
 ## Mobile App (`mobile/`)
 
-React Native + Expo (iOS-first). **Dormant** and diverged from web (its own copies of hooks/types). Roadmap **Horizon 2** rebuilds it on `@cache/core` for shared logic — it is **excluded from the npm workspace** until then, so it installs independently (`cd mobile && npm install`).
+React Native + Expo SDK 54 (iOS-first). **Horizon 2 slice 1:** wired to `@cache/core` for capture / notes / categories / auth. Buffer + board screens still live in this package (not feature-parity with web). Install separately (`cd mobile && npm install`) — not a root workspace member (React 19 vs web's React 18).
 
 ### Stack
 
 | Concern | Choice |
 |---|---|
-| Framework | React Native + Expo SDK 52 |
-| Navigation | React Navigation v6 + react-native-pager-view (swipe tabs) |
-| Font | JetBrains Mono (expo-font) |
-| Backend | Supabase JS client |
-| AI sort | Claude Haiku via Anthropic API |
+| Framework | React Native + Expo SDK 54 |
+| Navigation | react-native-pager-view (swipe: buffer / capture / board) |
+| Font | JetBrains Mono (`@expo-google-fonts/jetbrains-mono`) |
+| Backend | Same Supabase project as web, via `@cache/core` |
+| Outbox | `setOutboxStorage()` with expo-sqlite sync (Expo Go; MMKV would need a dev client) |
+| Online | NetInfo snapshot injected into `useNotesCore` |
+| Auth | `useAuthCore` — guest (anonymous) + email; session in AsyncStorage |
 
 ### Commands
 
 ```bash
 cd mobile
-npx expo start           # start dev server
-npx expo start --ios     # iOS simulator
-npx expo start --android # Android emulator
+npm install
+npx expo start           # QR into Expo Go (default for this slice)
+npx expo start --ios     # iOS simulator (Xcode)
+npm test                 # vitest (capture routing, outbox adapter, keyboard inset)
+npm run typecheck
 ```
+
+A **dev client / EAS / App Store submit is not part of this slice.** Expo Go is enough for one-handed capture.
 
 ### Key Screens
 
 | Screen | Purpose |
 |---|---|
+| CaptureScreen | Thumb-zone composer: field + chips + save, docked above the keyboard |
+| LoginScreen | Minimal auth gate (guest / login / register) |
 | BufferScreen | Unsorted notes inbox |
-| BoardScreen | Category grid + note lists |
-| GraphScreen | Note connection explorer |
+| BoardScreen | Category grid + note lists (legacy UI, still present) |
+
+### Capture / keyboard
+
+Composer is bottom-docked. `Keyboard` will/did show-hide sets height; pager dots hide while the keyboard is open so Save stays in the thumb zone. Do not port web `visualViewport` hacks here.
 
 ### Design
 

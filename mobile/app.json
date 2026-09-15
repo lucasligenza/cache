@@ -17,11 +17,13 @@
       "adaptiveIcon": {
         "backgroundColor": "#1a1a1a"
       },
-      "package": "com.cache.notes"
+      "package": "com.cache.notes",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "plugins": [
       "expo-notifications",
-      "expo-asset"
+      "expo-asset",
+      "expo-sqlite"
     ],
     "extra": {
       "supabaseUrl": "https://ahozdqjtipnxdnrixcbv.supabase.co",

@@ -1,167 +1,174 @@
 import React, { useRef, useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView,
+  ScrollView,
 } from 'react-native';
-import Animated, {
-  useSharedValue, withTiming, withSequence, runOnJS, useAnimatedStyle,
-} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { COLORS } from '../constants';
-import { Category } from '../types';
+import type { Category } from '../types';
+import { resolveCaptureInput } from '../lib/capture';
 
 interface Props {
-  onCommit: (text: string, categoryId?: string) => void;
+  onCommit: (text: string, categoryId?: string) => Promise<void>;
   categories: Category[];
   initialCategoryId: string | null;
+  bufferCount: number;
+  /** Keyboard height already applied by the parent shell (paddingBottom). */
+  keyboardOpen: boolean;
 }
 
-export function CaptureScreen({ onCommit, categories, initialCategoryId }: Props) {
+export function CaptureScreen({
+  onCommit, categories, initialCategoryId, bufferCount, keyboardOpen,
+}: Props) {
   const [text, setText] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
-  const translateX = useSharedValue(0);
-  const opacity = useSharedValue(1);
 
   useEffect(() => {
-    if (initialCategoryId !== null) {
-      setSelectedCategoryId(initialCategoryId);
-      setDropdownOpen(false);
-    }
+    if (initialCategoryId !== null) setSelectedCategoryId(initialCategoryId);
   }, [initialCategoryId]);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-    opacity: opacity.value,
-  }));
-
-  const handleCommit = () => {
-    if (!text.trim()) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const note = text.trim();
-    const catId = selectedCategoryId ?? undefined;
-
-    const reset = () => {
-      setText('');
-      setSelectedCategoryId(null);
-      setDropdownOpen(false);
-      translateX.value = 0;
-      opacity.value = 1;
-      inputRef.current?.focus();
-      onCommit(note, catId);
-    };
-
-    translateX.value = withSequence(
-      withTiming(-8, { duration: 60 }),
-      withTiming(-300, { duration: 260 })
-    );
-    opacity.value = withTiming(0, { duration: 280 }, (done) => {
-      if (done) runOnJS(reset)();
-    });
-  };
-
-  const selectCategory = (id: string | null) => {
-    setSelectedCategoryId(id);
-    setDropdownOpen(false);
-  };
+  useEffect(() => {
+    if (keyboardOpen) {
+      const t = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [keyboardOpen]);
 
   const selectedCat = selectedCategoryId
     ? categories.find(c => c.id === selectedCategoryId)
     : null;
 
-  const selectorLabel = selectedCat ? `→ /${selectedCat.name.toLowerCase()}` : '→ buffer';
+  const handleCommit = async () => {
+    if (submitting) return;
+    const resolved = resolveCaptureInput(text, categories, selectedCategoryId);
+    if (!resolved.ok) {
+      setStatus(resolved.hint);
+      return;
+    }
+
+    setSubmitting(true);
+    setStatus(resolved.warning ?? null);
+    try {
+      await onCommit(resolved.text, resolved.categoryId);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setText('');
+      setSelectedCategoryId(null);
+      setStatus(resolved.warning ?? 'cached ✓');
+      // Stay on capture — saving must not launch review, todos, or nags.
+      inputRef.current?.focus();
+    } catch {
+      setStatus('could not cache — kept in editor');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const canSave = text.trim().length > 0 && !submitting;
+  const accent = selectedCat?.color ?? COLORS.accent;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={80}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.center}>
-          <Text style={styles.prompt}>~/cache $</Text>
-          <View style={styles.editorPane}>
-            <Animated.View style={animatedStyle}>
-              <TextInput
-                ref={inputRef}
-                style={styles.input}
-                value={text}
-                onChangeText={setText}
-                multiline
-                autoFocus
-                placeholder="type a note..."
-                placeholderTextColor={COLORS.textDim}
-                cursorColor={selectedCat ? selectedCat.color : COLORS.accent}
-                selectionColor={(selectedCat ? selectedCat.color : COLORS.accent) + '40'}
-                onSubmitEditing={handleCommit}
-              />
-            </Animated.View>
-          </View>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.prompt}>~/cache $</Text>
+        <Text style={styles.bufferCount}>
+          {bufferCount} in buffer
+        </Text>
+      </View>
 
-          {/* Category dropdown */}
-          <TouchableOpacity
-            style={styles.selectorRow}
-            onPress={() => setDropdownOpen(o => !o)}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.selectorLabel, selectedCat && { color: selectedCat.color }]}>
-              {selectorLabel}
-            </Text>
-            <Text style={styles.selectorCaret}>{dropdownOpen ? '[▴]' : '[▾]'}</Text>
-          </TouchableOpacity>
+      {status ? (
+        <Text
+          style={[
+            styles.status,
+            status.startsWith('cached') ? styles.statusOk : styles.statusWarn,
+          ]}
+          accessibilityLiveRegion="polite"
+        >
+          {status}
+        </Text>
+      ) : (
+        <Text style={styles.hint}>memory inbox — save files a thought, nothing else</Text>
+      )}
 
-          {dropdownOpen && (
-            <View style={styles.dropdownList}>
-              <TouchableOpacity
-                style={[styles.dropdownItem, !selectedCategoryId && styles.dropdownItemActive]}
-                onPress={() => selectCategory(null)}
-              >
-                <Text style={[styles.dropdownItemText, !selectedCategoryId && { color: COLORS.textMuted }]}>
-                  none  <Text style={styles.dropdownHint}>(→ buffer)</Text>
-                </Text>
-              </TouchableOpacity>
-              {categories.map(cat => {
-                const isSelected = selectedCategoryId === cat.id;
-                return (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[
-                      styles.dropdownItem,
-                      isSelected && { backgroundColor: cat.color + '18' },
-                    ]}
-                    onPress={() => selectCategory(cat.id)}
-                  >
-                    <View style={[styles.dropdownSwatch, { backgroundColor: cat.color }]} />
-                    <Text style={[styles.dropdownItemText, { color: cat.color }]}>
-                      /{cat.name.toLowerCase()}
-                    </Text>
-                    {isSelected && <Text style={[styles.dropdownCheck, { color: cat.color }]}>●</Text>}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
+      <View style={styles.spacer} />
 
-          <TouchableOpacity
-            style={[
-              styles.commitBtn,
-              selectedCat && { borderColor: selectedCat.color + '60' },
-              dropdownOpen && { marginTop: 12 },
-            ]}
-            onPress={handleCommit}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.commitText, selectedCat && { color: selectedCat.color }]}>
-              commit
-            </Text>
-          </TouchableOpacity>
+      <View style={styles.composer} accessibilityLabel="capture composer">
+        <View style={[styles.editorPane, keyboardOpen && { borderColor: COLORS.accent + '66' }]}>
+          <TextInput
+            ref={inputRef}
+            style={styles.input}
+            value={text}
+            onChangeText={t => {
+              setText(t);
+              if (status) setStatus(null);
+            }}
+            multiline
+            autoFocus
+            blurOnSubmit={false}
+            returnKeyType="default"
+            placeholder="type a note..."
+            placeholderTextColor={COLORS.textDim}
+            cursorColor={accent}
+            selectionColor={accent + '40'}
+            textAlignVertical="top"
+            accessibilityLabel="note"
+          />
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+        <ScrollView
+          horizontal
+          keyboardShouldPersistTaps="handled"
+          showsHorizontalScrollIndicator={false}
+          style={styles.chipRow}
+          contentContainerStyle={styles.chipRowContent}
+          accessibilityLabel="file to"
+        >
+          <TouchableOpacity
+            style={[styles.chip, !selectedCat && styles.chipActive]}
+            onPress={() => setSelectedCategoryId(null)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: !selectedCat }}
+            accessibilityLabel="file to buffer"
+          >
+            <Text style={[styles.chipText, !selectedCat && styles.chipTextActive]}>buffer</Text>
+          </TouchableOpacity>
+          {categories.map(cat => {
+            const active = selectedCategoryId === cat.id;
+            return (
+              <TouchableOpacity
+                key={cat.id}
+                style={[styles.chip, active && { borderColor: cat.color, backgroundColor: cat.color + '18' }]}
+                onPress={() => setSelectedCategoryId(cat.id)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={`file to ${cat.name}`}
+              >
+                <Text style={[styles.chipText, { color: cat.color }]}>/{cat.name.toLowerCase()}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        <TouchableOpacity
+          style={[
+            styles.saveBtn,
+            canSave ? { borderColor: accent + '99' } : styles.saveBtnDisabled,
+          ]}
+          onPress={handleCommit}
+          disabled={!canSave}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="save"
+          accessibilityState={{ disabled: !canSave, busy: submitting }}
+        >
+          <Text style={[styles.saveText, { color: canSave ? accent : COLORS.textDim }]}>
+            {submitting ? 'saving…' : 'save'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
@@ -169,118 +176,108 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+    paddingHorizontal: 16,
   },
-  scroll: {
-    flexGrow: 1,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 48,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    paddingTop: 12,
   },
   prompt: {
     fontFamily: 'JetBrainsMono_400Regular',
     fontSize: 12,
     color: COLORS.textMuted,
-    marginBottom: 8,
     letterSpacing: 0.5,
+  },
+  bufferCount: {
+    fontFamily: 'JetBrainsMono_400Regular',
+    fontSize: 11,
+    color: COLORS.amber,
+    letterSpacing: 0.3,
+  },
+  hint: {
+    fontFamily: 'JetBrainsMono_400Regular',
+    fontSize: 11,
+    color: COLORS.textDim,
+    marginTop: 8,
+  },
+  status: {
+    fontFamily: 'JetBrainsMono_400Regular',
+    fontSize: 12,
+    marginTop: 8,
+  },
+  statusOk: { color: COLORS.accent },
+  statusWarn: { color: COLORS.amber },
+  spacer: {
+    flex: 1,
+    minHeight: 8,
+  },
+  composer: {
+    paddingBottom: 8,
   },
   editorPane: {
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: 4,
-    padding: 16,
-    minHeight: 140,
-    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 88,
+    maxHeight: 160,
   },
   input: {
     fontFamily: 'JetBrainsMono_400Regular',
-    fontSize: 15,
+    fontSize: 16,
     color: COLORS.text,
     lineHeight: 22,
-    minHeight: 108,
+    minHeight: 68,
     textAlignVertical: 'top',
   },
-  selectorRow: {
-    flexDirection: 'row',
+  chipRow: {
+    marginTop: 10,
+    flexGrow: 0,
+  },
+  chipRowContent: {
+    gap: 8,
+    paddingRight: 8,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.surface,
+  },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: 3,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 2,
-  },
-  selectorLabel: {
-    fontFamily: 'JetBrainsMono_400Regular',
-    fontSize: 13,
-    color: COLORS.textMuted,
-    letterSpacing: 0.3,
-  },
-  selectorCaret: {
-    fontFamily: 'JetBrainsMono_400Regular',
-    fontSize: 11,
-    color: COLORS.textDim,
-  },
-  dropdownList: {
     backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderTopWidth: 0,
-    borderBottomLeftRadius: 3,
-    borderBottomRightRadius: 3,
-    marginBottom: 2,
-    overflow: 'hidden',
   },
-  dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    gap: 8,
+  chipActive: {
+    borderColor: COLORS.textMuted,
   },
-  dropdownItemActive: {
-    backgroundColor: COLORS.surfaceHover,
-  },
-  dropdownItemText: {
+  chipText: {
     fontFamily: 'JetBrainsMono_400Regular',
-    fontSize: 13,
-    color: COLORS.textDim,
-    flex: 1,
+    fontSize: 12,
+    color: COLORS.textMuted,
   },
-  dropdownHint: {
-    fontFamily: 'JetBrainsMono_400Regular',
-    fontSize: 11,
-    color: COLORS.textDim,
+  chipTextActive: {
+    color: COLORS.text,
   },
-  dropdownSwatch: {
-    width: 6,
-    height: 6,
-    borderRadius: 1,
-  },
-  dropdownCheck: {
-    fontFamily: 'JetBrainsMono_400Regular',
-    fontSize: 8,
-  },
-  commitBtn: {
-    marginTop: 12,
+  saveBtn: {
+    marginTop: 10,
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: 4,
-    paddingVertical: 14,
+    minHeight: 52,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  commitText: {
-    fontFamily: 'JetBrainsMono_400Regular',
-    fontSize: 14,
-    color: COLORS.accent,
-    letterSpacing: 2,
+  saveBtnDisabled: {
+    opacity: 0.7,
+  },
+  saveText: {
+    fontFamily: 'JetBrainsMono_700Bold',
+    fontSize: 16,
+    letterSpacing: 3,
   },
 });

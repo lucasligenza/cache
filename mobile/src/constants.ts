@@ -1,5 +1,3 @@
-export const USER_ID = '00000000-0000-0000-0000-000000000001';
-
 export const ACCENT_COLORS = [
   '#F5A623', // amber
   '#39FF14', // matrix-green

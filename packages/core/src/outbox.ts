@@ -3,8 +3,9 @@
 // to an offline/flaky network — it syncs later on reconnect or app reload.
 //
 // Platform-agnostic: the *synchronous* key-value store is injected. Web passes
-// `localStorage`; native passes a synchronous MMKV-backed adapter. Synchronous is
-// the whole point — a note is provably durable before the capture UI clears.
+// `localStorage`; native passes a synchronous adapter (MMKV, or expo-sqlite's
+// sync API so Expo Go works without a custom dev client). Synchronous is the
+// whole point — a note is provably durable before the capture UI clears.
 
 export const OUTBOX_KEY = 'cn_outbox_v1';
 
@@ -30,7 +31,8 @@ let injected: SyncStorage | null = null;
 
 /**
  * Point the outbox at a platform storage. Web can skip this (it falls back to
- * globalThis.localStorage); native must call it once at startup with an MMKV adapter.
+ * globalThis.localStorage); native must call it once at startup with a
+ * synchronous adapter (MMKV or expo-sqlite sync).
  */
 export function setOutboxStorage(storage: SyncStorage): void {
   injected = storage;

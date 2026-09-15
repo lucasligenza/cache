@@ -8,6 +8,8 @@ import { Note } from '../types';
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: false,
     shouldSetBadge: false,
   }),
@@ -32,7 +34,10 @@ export async function scheduleNoteReminder(note: Note) {
       body: note.text.slice(0, 100),
       data: { noteId: note.id, categoryId: note.category_id },
     },
-    trigger,
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: trigger,
+    },
   });
 }
 
