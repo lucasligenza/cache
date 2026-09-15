@@ -140,24 +140,22 @@ export function CaptureBar({ categories, onCommit }: Props) {
           value={text}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          onFocus={() => setFocused(true)}
+          onFocus={() => {
+            setFocused(true);
+            // iOS pans the document to the focused field; the shell is pinned
+            // to visualViewport, so a leftover window scroll would jump layout.
+            window.scrollTo(0, 0);
+          }}
           onBlur={() => setFocused(false)}
           placeholder="type a note..."
           rows={1}
+          enterKeyHint="send"
         />
         {flash && <span className="capture-bar__cached">cached ✓</span>}
-        <button
-          className="capture-bar__send-btn"
-          onClick={handleCommit}
-          aria-label="send"
-          type="button"
-        >
-          ↵
-        </button>
       </div>
 
       <div className="capture-bar__footer">
-        <div style={{ position: 'relative' }}>
+        <div className="capture-bar__cat-wrap">
           <button
             className="capture-bar__cat-btn"
             onClick={() => (pickerOpen ? setPickerOpen(false) : openPicker())}
@@ -191,6 +189,17 @@ export function CaptureBar({ categories, onCommit }: Props) {
         </div>
 
         <span className="capture-bar__hint">↵ commit · tab for category · /dir to file</span>
+
+        <button
+          className="capture-bar__send-btn"
+          onClick={handleCommit}
+          aria-label="send"
+          type="button"
+          disabled={submitting}
+          aria-busy={submitting}
+        >
+          ↵
+        </button>
       </div>
     </div>
   );

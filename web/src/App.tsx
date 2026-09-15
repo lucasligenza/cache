@@ -3,6 +3,7 @@ import type { ViewName, Note } from './types';
 import { useAuth } from './hooks/useAuth';
 import { useNotes } from './hooks/useNotes';
 import { useCategories } from './hooks/useCategories';
+import { useVisualViewport } from './hooks/useVisualViewport';
 import { useToast } from './components/Toast';
 import { subscribeToPush, unsubscribeFromPush, getPushStatus } from './lib/push';
 import { registerOutboxSync } from './lib/bgsync';
@@ -27,6 +28,9 @@ import { exportJson, exportMarkdown } from './lib/exporter';
 import './App.css';
 
 export default function App() {
+  // Pin the shell to visualViewport so iOS keyboard open/close does not jump
+  // or bury the capture bar. See useVisualViewport + App.css [data-keyboard].
+  useVisualViewport();
   const { showToast } = useToast();
   const { user, loading: authLoading, signIn, signUp, signInAsGuest, upgradeGuest, signOut } = useAuth();
   const [booted, setBooted] = useState(() => sessionStorage.getItem('cn_booted') === '1');

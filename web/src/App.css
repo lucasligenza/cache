@@ -1,7 +1,13 @@
 .app-shell {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  /* visualViewport pin (useVisualViewport): iOS does not shrink 100vh with the keyboard. */
+  position: fixed;
+  left: 0;
+  right: 0;
+  width: 100%;
+  top: var(--vv-offset-top, 0px);
+  height: var(--vv-height, 100dvh);
   overflow: hidden;
 }
 
@@ -9,4 +15,22 @@
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+}
+
+/*
+ * While the software keyboard is open, drop BottomNav so CaptureBar (field + save)
+ * sits in the thumb zone just above the keyboard instead of being pushed up by
+ * ~56px of unused tabs + home-indicator padding that iOS has already covered.
+ */
+html[data-keyboard="open"] .bottom-nav {
+  display: none;
+}
+
+html[data-keyboard="open"] .capture-bar {
+  max-height: 45%;
+  overflow: hidden;
+}
+
+html[data-keyboard="open"] .capture-bar__input {
+  max-height: 72px;
 }
