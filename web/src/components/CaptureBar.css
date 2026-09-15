@@ -78,6 +78,10 @@
   padding-left: 88px;
 }
 
+.capture-bar__cat-wrap {
+  position: relative;
+}
+
 .capture-bar__cat-btn {
   font-size: 11px;
   border: 1px solid var(--border);
@@ -164,11 +168,36 @@
   min-width: 44px;
   cursor: pointer;
   flex-shrink: 0;
-  align-self: flex-end;
-  margin-left: 6px;
+  margin-left: auto;
+  touch-action: manipulation;
+}
+
+.capture-bar__send-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 @media (pointer: coarse) {
+  .capture-bar {
+    padding: 10px 12px 12px;
+  }
+
+  .capture-bar__footer {
+    padding-left: 0;
+    margin-top: 8px;
+  }
+
+  .capture-bar__cat-btn {
+    min-height: 44px;
+    padding: 8px 12px;
+    touch-action: manipulation;
+  }
+
+  .capture-bar__picker-item {
+    min-height: 44px;
+    padding: 12px;
+  }
+
   .capture-bar__send-btn {
     display: flex;
     align-items: center;

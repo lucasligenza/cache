@@ -42,10 +42,19 @@
 
 html, body, #root {
   height: 100%;
+  width: 100%;
   overflow: hidden;
 }
 
+html {
+  /* Stop iOS from rubber-banding the document when the keyboard opens. */
+  overscroll-behavior: none;
+}
+
 body {
+  /* Fixed body so Safari cannot pan leftover scroll offsets under the keyboard. */
+  position: fixed;
+  inset: 0;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);

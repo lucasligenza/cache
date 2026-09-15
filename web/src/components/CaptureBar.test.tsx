@@ -85,4 +85,24 @@ describe('CaptureBar', () => {
     expect(onCommit).not.toHaveBeenCalled();
     expect(textarea.value).toBe('/work');
   });
+
+  it('labels the iOS return key as send', () => {
+    renderBar(vi.fn().mockResolvedValue(undefined));
+    const textarea = screen.getByPlaceholderText('type a note...') as HTMLTextAreaElement;
+    expect(textarea).toHaveAttribute('enterkeyhint', 'send');
+  });
+
+  it('disables send while a commit is in flight', async () => {
+    let resolveCommit: () => void = () => {};
+    const onCommit = vi.fn().mockImplementation(
+      () => new Promise<void>(resolve => { resolveCommit = resolve; })
+    );
+    renderBar(onCommit);
+    type('in flight');
+    send();
+    await waitFor(() => expect(onCommit).toHaveBeenCalled());
+    expect(screen.getByRole('button', { name: 'send' })).toBeDisabled();
+    resolveCommit();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'send' })).not.toBeDisabled());
+  });
 });
