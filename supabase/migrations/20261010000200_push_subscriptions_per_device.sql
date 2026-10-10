@@ -1,8 +1,8 @@
 -- One push subscription per device (browser endpoint) instead of one per user:
 -- with UNIQUE (user_id), subscribing on a phone silently replaced the laptop.
-
-alter table public.push_subscriptions
-  drop constraint if exists push_subscriptions_user_id_key;
+-- Step 1 of 2, backward compatible with clients that still upsert on user_id.
+-- UNIQUE (user_id) is dropped in 20261010000400, once the web client that
+-- calls register_push_subscription is deployed.
 
 -- Keep the newest row per endpoint so the unique constraint can be added.
 delete from public.push_subscriptions a
