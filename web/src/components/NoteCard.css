@@ -1,10 +1,10 @@
 .note-card {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 3px;
-  padding: 10px 14px;
-  margin-bottom: 8px;
-  cursor: pointer;
+  padding: 8px 12px;
+  margin-bottom: 6px;
   transition: border-color 0.12s, box-shadow 0.12s, transform 0.25s, opacity 0.25s;
   animation: card-enter 0.22s ease both;
 }
@@ -19,24 +19,8 @@
   border-left: 2px dashed var(--text-dim);
 }
 
-.note-card__chip--queued {
-  color: var(--text-muted);
-  border-color: var(--border);
-  cursor: default;
-}
-
-.note-card__chip--mute {
-  color: var(--text-muted);
-  border-color: var(--border);
-}
-
-.note-card__chip--muted {
-  color: var(--text-dim);
-  border-color: var(--border);
-}
-
 .note-card--stale {
-  border-left: 2px solid rgba(255, 68, 68, 0.5);
+  border-left: 2px solid color-mix(in srgb, var(--red) 50%, transparent);
 }
 
 /* Pinned wins over stale for the left accent bar. */
@@ -53,7 +37,7 @@
 @keyframes note-focus-pulse {
   0%   { box-shadow: 0 0 0 0 var(--accent-glow); }
   30%  { box-shadow: 0 0 16px 2px var(--accent-glow); }
-  100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+  100% { box-shadow: 0 0 0 0 transparent; }
 }
 
 .note-card--exiting {
@@ -75,43 +59,6 @@
   100% { transform: translateX(46px) scale(0.7); opacity: 0; box-shadow: 0 0 26px 2px var(--filing-color); }
 }
 
-.note-card__text {
-  color: var(--text);
-  font-size: 13px;
-  line-height: 1.55;
-  margin-bottom: 8px;
-  word-break: break-word;
-  cursor: text;
-}
-
-.note-card__meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.note-card__time {
-  color: var(--text-dim);
-  font-size: 10px;
-}
-
-.note-card__chip {
-  font-size: 10px;
-  padding: 1px 8px;
-  border-radius: 2px;
-  border: 1px solid;
-  cursor: pointer;
-  font-family: var(--font);
-  background: none;
-  transition: opacity 0.1s;
-  line-height: 18px;
-}
-
-.note-card__chip:hover {
-  opacity: 0.75;
-}
-
 @keyframes card-enter {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -123,93 +70,211 @@
 }
 
 .note-card--confirm {
-  border-color: rgba(255, 68, 68, 0.25);
+  border-color: color-mix(in srgb, var(--red) 35%, transparent);
 }
 
-.note-card__edit-area {
-  width: 100%;
-  background: transparent;
-  border: none;
-  outline: none;
+/* ── text ─────────────────────────────────────────────── */
+
+.note-card__text {
   color: var(--text);
-  font-family: var(--font);
-  font-size: 13px;
-  resize: none;
-  line-height: 1.55;
-  padding: 0;
-  margin-bottom: 8px;
+  font-size: var(--fs-md, 14px);
+  line-height: 1.5;
+  margin-bottom: 4px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  cursor: text;
 }
 
-.note-card__edit-hint {
-  color: var(--text-dim);
-  font-size: 10px;
-  margin-left: auto;
+.note-card__text--clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
 }
 
 .note-card__text--dim {
   color: var(--text-muted);
 }
 
-.note-card__confirm-label {
-  color: var(--red);
-  font-size: 11px;
+.note-card__edit-area {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-md, 14px);
+  resize: none;
+  line-height: 1.5;
+  padding: 0;
+  margin-bottom: 6px;
+  max-height: 50vh;
 }
 
-.note-card__chip--danger {
-  color: var(--red) !important;
-  border-color: rgba(255, 68, 68, 0.4) !important;
+/* ── meta / action row ────────────────────────────────── */
+
+.note-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-height: var(--tap-min, 24px);
 }
 
-.note-card__chip--pin {
+.note-card__spacer {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.note-card__time {
   color: var(--text-muted);
-  border-color: var(--border);
+  font-size: var(--fs-xs, 11px);
+  white-space: nowrap;
 }
 
-.note-card__chip--pinned {
+.note-card__secondary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.note-card__chip,
+.note-card__badge,
+.note-card__more {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-min, 24px);
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: var(--fs-sm, 12px);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.1s, border-color 0.1s, background 0.1s;
+}
+
+.note-card__chip:hover,
+.note-card__badge:hover,
+.note-card__more:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+.note-card__chip--quiet {
+  color: var(--text-muted);
+}
+
+.note-card__chip--primary {
   color: var(--accent);
   border-color: var(--accent-glow);
-  text-shadow: 0 0 5px var(--accent-glow);
 }
 
-.note-card__chip--flag {
-  color: var(--text-muted);
-  border-color: var(--border);
-}
-
-.note-card__chip--flagged {
-  color: var(--amber);
-  border-color: rgba(245, 166, 35, 0.4);
-}
-
-.note-card__chip--review {
+.note-card__chip--primary:hover {
   color: var(--accent);
-  border-color: var(--accent-glow);
-}
-
-.note-card__chip--review:hover {
+  border-color: var(--accent);
   background: var(--accent-glow-soft);
 }
 
-.note-card__ping-input {
-  background: var(--surface-deep);
-  border: 1px solid var(--border);
-  border-radius: 2px;
+.note-card__chip--mv {
   color: var(--text);
-  font-family: var(--font);
-  font-size: 10px;
-  padding: 1px 6px;
-  color-scheme: dark;
+  border-color: var(--text-dim);
+}
+
+.note-card__chip--mv[aria-expanded="true"] {
+  color: var(--accent);
+  border-color: var(--accent-glow);
 }
 
 .note-card__chip--ping {
   color: var(--amber);
-  border-color: rgba(245, 166, 35, 0.3);
+  border-color: color-mix(in srgb, var(--amber) 30%, transparent);
 }
 
-.note-card__chip--clear {
-  color: var(--text-muted);
+.note-card__chip--ping:hover {
+  color: var(--amber);
+  border-color: var(--amber);
+}
+
+.note-card__chip--rm {
+  color: color-mix(in srgb, var(--red) 80%, var(--text-muted));
+  border-color: color-mix(in srgb, var(--red) 25%, transparent);
+}
+
+.note-card__chip--rm:hover,
+.note-card__chip--danger,
+.note-card__chip--danger:hover {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 50%, transparent);
+}
+
+.note-card__chip--danger:hover {
+  background: color-mix(in srgb, var(--red) 10%, transparent);
+}
+
+/* Status badges: always visible, borderless so they read as state, not buttons. */
+.note-card__badge {
+  border-color: transparent;
+  padding: 0 4px;
+  font-size: var(--fs-xs, 11px);
+}
+
+.note-card__badge:hover {
   border-color: var(--border);
 }
+
+.note-card__badge--queued {
+  cursor: default;
+}
+
+.note-card__badge--ping,
+.note-card__badge--ping:hover,
+.note-card__badge--flagged,
+.note-card__badge--flagged:hover {
+  color: var(--amber);
+}
+
+.note-card__badge--overdue,
+.note-card__badge--overdue:hover {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 35%, transparent);
+}
+
+.note-card__badge--pinned,
+.note-card__badge--pinned:hover {
+  color: var(--accent);
+}
+
+.note-card__badge--muted {
+  color: var(--text-muted);
+}
+
+.note-card__badge--expand {
+  min-width: 28px;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: var(--fs-sm, 12px);
+}
+
+.note-card__more {
+  padding: 0 6px;
+  font-size: var(--fs-md, 14px);
+  letter-spacing: 0.05em;
+}
+
+.note-card__more[aria-expanded="true"] {
+  color: var(--accent);
+  border-color: var(--accent-glow);
+}
+
+/* ── ping / snooze panel ──────────────────────────────── */
 
 .note-card__ping-row {
   display: flex;
@@ -222,38 +287,114 @@
 }
 
 .note-card__ping-label {
-  color: var(--text-dim);
-  font-size: 10px;
+  color: var(--text-muted);
+  font-size: var(--fs-xs, 11px);
 }
 
-.note-card__ping-set {
-  color: var(--amber);
-  font-size: 10px;
-  margin-left: auto;
-}
-
-.note-card__ping-set--overdue {
-  color: var(--red);
-}
-
-.note-card__ping-badge {
-  color: var(--amber);
-  font-size: 10px;
-  border: 1px solid rgba(245, 166, 35, 0.3);
+.note-card__ping-input {
+  min-height: var(--tap-min, 24px);
+  background: var(--surface-deep);
+  border: 1px solid var(--border);
   border-radius: 2px;
-  padding: 0 6px;
-  line-height: 18px;
-  background: none;
-  cursor: pointer;
+  color: var(--text);
   font-family: var(--font);
-  transition: opacity 0.1s;
+  font-size: var(--fs-sm, 12px);
+  padding: 0 6px;
+  color-scheme: dark;
 }
 
-.note-card__ping-badge:hover {
-  opacity: 0.75;
+[data-theme="light"] .note-card__ping-input {
+  color-scheme: light;
 }
 
-.note-card__ping-badge--overdue {
+/* ── edit / confirm ───────────────────────────────────── */
+
+.note-card__edit-hint {
+  color: var(--text-muted);
+  font-size: var(--fs-xs, 11px);
+}
+
+.note-card__confirm-label {
   color: var(--red);
-  border-color: rgba(255, 68, 68, 0.3);
+  font-size: var(--fs-sm, 12px);
+}
+
+/* ── pointer-specific layout ──────────────────────────── */
+
+/* Mouse/trackpad: secondary actions appear on hover or keyboard focus, in place,
+   so revealing them never shifts the layout. */
+@media (hover: hover) and (pointer: fine) {
+  .note-card__more {
+    display: none;
+  }
+
+  .note-card__secondary {
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+
+  .note-card:hover .note-card__secondary,
+  .note-card:focus-within .note-card__secondary {
+    opacity: 1;
+  }
+}
+
+/* Touch: secondary actions live behind ⋯ and open as their own row; every
+   target is at least --tap-min tall, with the hit area padded out further. */
+@media (hover: none), (pointer: coarse) {
+  .note-card {
+    padding: 8px 10px 6px 12px;
+  }
+
+  .note-card__meta,
+  .note-card__ping-row {
+    gap: 8px;
+  }
+
+  .note-card__chip,
+  .note-card__badge,
+  .note-card__more,
+  .note-card__ping-input {
+    min-height: var(--tap-min, 32px);
+  }
+
+  .note-card__chip {
+    padding: 0 10px;
+  }
+
+  .note-card__more {
+    padding: 0 8px;
+  }
+
+  .note-card__chip::after,
+  .note-card__badge::after,
+  .note-card__more::after {
+    content: '';
+    position: absolute;
+    inset: -6px -4px;
+  }
+
+  .note-card__more {
+    min-width: 36px;
+    justify-content: center;
+  }
+
+  .note-card__secondary {
+    display: none;
+  }
+
+  .note-card--more-open .note-card__secondary {
+    display: flex;
+    order: 99;
+    flex-basis: 100%;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 2px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+
+  .note-card__edit-hint {
+    display: none;
+  }
 }
