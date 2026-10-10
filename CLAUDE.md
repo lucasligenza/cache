@@ -79,7 +79,7 @@ Notes with `archived_at IS NULL` are active. Notes with `category_id IS NULL` ar
 | Routing | None — `activeView` state in `App.tsx` (`'buffer' | 'board' | 'search' | 'review' | 'settings' | 'archive'`) |
 | Testing | Vitest + @testing-library/react |
 | Shared core | Consumes `@cache/core` (workspace dependency) via re-export shims |
-| Deployment | Vercel — **Root Directory = `web`**; `web/vercel.json` sets `installCommand: cd .. && npm ci` (installs the workspace root strictly from the committed lockfile), `buildCommand: npm run build`, and rewrites all routes to `index.html`. Prod domain `cache-gilt.vercel.app`. |
+| Deployment | Vercel — **Root Directory = `web`**; `web/vercel.json` sets `installCommand: cd .. && npm ci` (installs the workspace root strictly from the committed lockfile), `buildCommand: npm run build`, rewrites extensionless routes (not `/assets/`, `/icons/`) to `index.html` so a missing chunk 404s instead of returning HTML, sets security headers (CSP in **report-only**, `nosniff`, `X-Frame-Options: DENY`, referrer + permissions policy) and caches `/assets/*` immutable for a year. `vite build` fails if `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` are missing. Prod domain `cache-gilt.vercel.app`. |
 
 ### Commands
 
@@ -100,8 +100,9 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...
 VITE_VAPID_PUBLIC_KEY=...            # web-push (reminders)
 VITE_ANTHROPIC_API_KEY=sk-ant-...   # reserved for AI sort — see note below (feature deferred, not wired)
-VITE_ERROR_REPORT_URL=...           # optional error telemetry collector — blank = inert
-VITE_RELEASE=...                    # optional build/commit id tagged on error reports
+VITE_SENTRY_DSN=...                 # optional Sentry DSN (envelope transport, no SDK) — blank = inert
+VITE_ERROR_REPORT_URL=...           # optional own JSON collector — blank = inert
+VITE_RELEASE=...                    # optional; defaults to VERCEL_GIT_COMMIT_SHA (VITE_DEPLOY_ENV ← VERCEL_ENV)
 ```
 
 > **AI sort is not implemented in web.** The env var above and the `pending_review` column are provisioned for a future Claude Haiku auto-categorize feature, but no Anthropic call exists in `web/src`. Sorting is manual (category chips / CaptureBar picker / `/dir` slash-routing).
@@ -130,7 +131,7 @@ Three fixed zones filling the full viewport. No page-level scroll.
 App
 ├── ErrorBoundary          ← class component, wraps entire app in main.tsx
 ├── ToastProvider          ← context provider, wraps App in main.tsx
-├── BootSequence           ← typewriter boot; persisted per session (sessionStorage cn_booted)
+├── BootSequence           ← typewriter boot; first-ever launch only (localStorage cn_booted)
 ├── DataLoadingScreen      ← fallback while Supabase data loads (rare — fetch runs during boot)
 └── Shell (app-shell div)
     ├── AppHeader          ← brand + live status (n notes · unsorted · N to review) + ⚙ settings gear
@@ -154,13 +155,16 @@ web/src/
 ├── types.ts                    # ViewName (web-only) + re-exports Note/Category from @cache/core
 ├── constants.ts                # COLORS, ACCENT_COLORS, DEFAULT_CATEGORIES
 ├── index.css                   # CSS custom properties, reset, scrollbar
+├── pwa.css                     # phone/installed-app behaviour: tap highlight, color-scheme, safe areas, toast placement
 ├── App.css                     # .app-shell / .app-shell__content
 ├── App.tsx                     # Root — boot/data gates, shell wiring, focus-note, palette, global keys
-├── main.tsx                    # ReactDOM.createRoot, ErrorBoundary + ToastProvider wrapper
+├── main.tsx                    # ReactDOM.createRoot, ErrorBoundary + ToastProvider wrapper, self-hosted font, startPwa()
+├── sw.ts                       # service worker: skipWaiting/clientsClaim, precache + SPA fallback, push, bg-sync nudge
 ├── lib/
 │   ├── supabase.ts             # createClient (throws if env vars missing)
 │   ├── push.ts                 # web-push subscribe/unsubscribe/status
-│   ├── telemetry.ts            # provider-agnostic error reporting (VITE_ERROR_REPORT_URL; inert if unset)
+│   ├── telemetry.ts            # error reporting to VITE_SENTRY_DSN and/or VITE_ERROR_REPORT_URL (inert if unset)
+│   ├── pwaUpdate.ts            # SW registration, foreground update checks, deferred safe reload onto new deploys
 │   ├── review.ts               # → re-exports @cache/core (buildReviewSet, countReviewedToday)
 │   ├── outbox.ts               # → re-exports @cache/core (offline capture queue)
 │   └── exporter.ts             # buildJson/buildMarkdown re-exported from core + web download wrapper
@@ -257,7 +261,8 @@ CSS custom properties live in `index.css`: `--bg`, `--surface`, `--surface-deep`
 ### Production Infrastructure
 
 - **`ErrorBoundary`** — React class component wrapping the entire app in `main.tsx`. Shows a terminal-aesthetic crash screen (`~/cache $ FATAL ERROR` + `[reload]` button) instead of a blank page. `componentDidCatch` reports the crash via `lib/telemetry`.
-- **`lib/telemetry.ts`** — provider-agnostic error telemetry. `initTelemetry()` (called in `main.tsx`) captures uncaught errors + unhandled rejections; `reportError()` dedupes + rate-limits and POSTs JSON to `VITE_ERROR_REPORT_URL` (inert if unset; logs in dev). `createTelemetry({ endpoint, send })` factory keeps it testable. Never throws.
+- **`lib/telemetry.ts`** — provider-agnostic error telemetry. `initTelemetry()` (called in `main.tsx`) captures uncaught errors + unhandled rejections; `reportError()` dedupes + rate-limits and sends a Sentry envelope to `VITE_SENTRY_DSN` and/or JSON to `VITE_ERROR_REPORT_URL` (text/plain bodies so beacons need no CORS preflight; inert if both unset; logs in dev). `createTelemetry({ endpoint, dsn, send })` factory keeps it testable. Never throws.
+- **PWA updates** — `sw.ts` calls `skipWaiting()` + `clientsClaim()`, so a new deploy takes over at once. `lib/pwaUpdate.ts` checks for updates whenever the app returns to the foreground (iOS standalone apps resume without navigating), on reconnect, and hourly; it reloads onto the new build only while the app is hidden **and** no text field holds unsent text. `public/ios-viewport.js` adds `maximum-scale=1` on iOS only (stops focus-zoom on <16px inputs; pinch-zoom still works).
 - **`Toast` / `useToast`** — React context notification system. `useToast()` returns `{ showToast(type, message, options?) }` where `options` = `{ actionLabel?, onAction?, duration? }` (powers the `[undo]` on archive). Types: `error` (red), `ok` (green), `warn` (amber). Auto-dismisses after 4s, stacks up to 3. Replaces all `alert()` and `console.error()` calls.
 - **`NoteCard` editing** — Click note text → green-bordered textarea; Enter or blur saves, Escape cancels. `onUpdate(noteId, { text })` called only when text changes.
 - **Inline confirmations** — NoteCard `rm` and BoardView category delete both use inline confirm state instead of `window.confirm()`.
