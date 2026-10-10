@@ -12,7 +12,7 @@ CacheNotes/                 ← npm-workspaces monorepo (root package.json)
 └── CLAUDE.md        ← this file
 ```
 
-> **Workspace note:** `npm install` runs at the **repo root** (workspaces: `web`, `packages/*`). `mobile/` is **not** a workspace member: Expo SDK 57 needs React 19.2 while web is React 18, and hoisting those together breaks both. Native installs on its own (`cd mobile && npm install`) and depends on `"@cache/core": "file:../packages/core"`. See **Mobile App**.
+> **Workspace note:** `npm ci` / `npm install` run at the **repo root** (workspaces: `web`, `packages/*`). The root `package-lock.json` is the single source of truth for web + core and must list every platform's optional native binaries (`@rollup/rollup-*`, `@esbuild/*`); if a dep change ever drops the Linux ones (npm/cli#4828), regenerate with npm ≥ 10.9 via `rm -rf node_modules web/node_modules package-lock.json && npm install` — never delete the lockfile at deploy time. `mobile/` is **not** a workspace member: Expo SDK 57 needs React 19.2 while web is React 18, and hoisting those together breaks both. Native installs on its own (`cd mobile && npm install`) and depends on `"@cache/core": "file:../packages/core"`. See **Mobile App**.
 
 Longer-term direction lives in the roadmap plan (see **Docs**). Current focus: Horizon 1 — extracting `@cache/core`, observability, test coverage, auth/guest lifecycle, PWA quality.
 
@@ -78,14 +78,15 @@ Notes with `archived_at IS NULL` are active. Notes with `category_id IS NULL` ar
 | State | React hooks — no global state library |
 | Routing | None — `activeView` state in `App.tsx` (`'buffer' | 'board' | 'search' | 'review' | 'settings' | 'archive'`) |
 | Testing | Vitest + @testing-library/react |
+| CI | GitHub Actions `.github/workflows/ci.yml` on every PR + push to `master` (Node from `.nvmrc`). Job **`web`**: root `npm ci` → core `tsc` → `npm run build -w web` → web tests → `npm audit --omit=dev --audit-level=high`. Job **`mobile`**: `mobile/` `npm ci` → `typecheck` → `test`. Branch protection on `master` requires both job names — rename a job and the rule must change too. |
 | Shared core | Consumes `@cache/core` (workspace dependency) via re-export shims |
-| Deployment | Vercel — **Root Directory = `web`**; `web/vercel.json` sets `installCommand: cd .. && rm -f package-lock.json && npm install` (installs the workspace root; the `rm` dodges the npm/cli#4828 rollup optional-dep bug on Linux), `buildCommand: npm run build`, and rewrites all routes to `index.html`. Prod domain `cache-gilt.vercel.app`. |
+| Deployment | Vercel — **Root Directory = `web`**; `web/vercel.json` sets `installCommand: cd .. && npm ci` (installs the workspace root strictly from the committed lockfile), `buildCommand: npm run build`, and rewrites all routes to `index.html`. Prod domain `cache-gilt.vercel.app`. |
 
 ### Commands
 
 ```bash
 # install ONCE at the repo root (workspaces) — not inside web/
-npm install
+npm ci                     # exact lockfile install (Node 24, see .nvmrc); use `npm install` only to change deps
 cd web
 cp .env.example .env       # then fill in credentials
 npm run dev                # dev server at http://localhost:5173
