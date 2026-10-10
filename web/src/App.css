@@ -17,6 +17,18 @@
   min-height: 0;
 }
 
+/* Landmark only — CaptureBar stays a direct flex child of the shell. */
+.app-shell__capture {
+  display: contents;
+}
+
+/* Skip-link target only; it isn't interactive, so no ring. */
+.app-shell__content:focus,
+.app-shell__content:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 /*
  * While the software keyboard is open, drop BottomNav so CaptureBar (field + save)
  * sits in the thumb zone just above the keyboard instead of being pushed up by

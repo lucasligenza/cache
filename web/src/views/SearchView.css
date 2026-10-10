@@ -11,11 +11,16 @@
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  transition: border-color 0.12s;
+}
+
+.search-view__bar:focus-within {
+  border-bottom-color: var(--accent-glow);
 }
 
 .search-view__prompt {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
 }
 
@@ -26,13 +31,13 @@
   outline: none;
   color: var(--text);
   font-family: var(--font);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   caret-color: var(--accent);
 }
 
 .search-view__count {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   white-space: nowrap;
 }
 
@@ -61,14 +66,14 @@
 
 .search-view__recent-label {
   color: var(--text-dim);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
 
 .search-view__recent-item {
   color: var(--text-dim);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   padding: 4px 0;
   line-height: 1.5;
   overflow: hidden;
@@ -85,7 +90,7 @@
 .search-view__no-results {
   padding: 16px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .search-view__result {
@@ -101,7 +106,7 @@
 
 .search-view__result-text {
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.5;
   margin-bottom: 4px;
 }
@@ -116,7 +121,7 @@
 .search-view__result-meta {
   display: flex;
   gap: 12px;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
 }
 
@@ -128,6 +133,6 @@
   padding: 8px 16px;
   border-top: 1px solid var(--border);
   color: var(--text-dim);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   flex-shrink: 0;
 }

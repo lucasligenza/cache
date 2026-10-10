@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import { LIGHT_THEME_ENABLED } from '../constants';
 import './SettingsView.css';
 
 interface Props {
@@ -25,7 +26,7 @@ const ACCENT_OPTIONS: { key: string; color: string }[] = [
   { key: 'amber',  color: '#F5A623' },
   { key: 'blue',   color: '#4FC3F7' },
   { key: 'purple', color: '#CE93D8' },
-  { key: 'red',    color: '#FF4444' },
+  { key: 'red',    color: '#FF5252' },
   { key: 'white',  color: '#E0E0E0' },
 ];
 
@@ -114,6 +115,7 @@ export function SettingsView({ userEmail, isGuest = false, theme, accent, onThem
         </section>
 
         {/* Theme */}
+        {LIGHT_THEME_ENABLED && (
         <section className="settings-section">
           <div className="settings-section__label">theme</div>
           <div className="settings-row settings-row--inline">
@@ -132,6 +134,7 @@ export function SettingsView({ userEmail, isGuest = false, theme, accent, onThem
             </button>
           </div>
         </section>
+        )}
 
         {/* Storage */}
         <section className="settings-section">

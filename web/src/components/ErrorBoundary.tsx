@@ -1,6 +1,7 @@
 import { Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { reportError } from '../lib/telemetry';
+import './ErrorBoundary.css';
 
 interface Props {
   children: ReactNode;
@@ -26,33 +27,10 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          background: '#1a1a1a',
-          fontFamily: "'JetBrains Mono', monospace",
-          color: '#E0E0E0',
-          gap: '8px',
-        }}>
-          <div style={{ color: '#FF4444' }}>~/cache $ FATAL ERROR</div>
-          <div style={{ color: '#666' }}>segmentation fault (component crashed)</div>
-          <button
-            onClick={() => window.location.reload()}
-            style={{
-              marginTop: '16px',
-              background: 'none',
-              border: '1px solid #333',
-              color: '#E0E0E0',
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: '12px',
-              padding: '6px 16px',
-              cursor: 'pointer',
-              borderRadius: '2px',
-            }}
-          >
+        <div className="crash-screen" role="alert">
+          <div className="crash-screen__title">~/cache $ FATAL ERROR</div>
+          <div className="crash-screen__msg">segmentation fault (component crashed)</div>
+          <button className="crash-screen__reload" onClick={() => window.location.reload()}>
             [reload]
           </button>
         </div>

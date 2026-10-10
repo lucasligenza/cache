@@ -30,14 +30,14 @@ export function BottomNav({ activeView, unsortedCount, reviewCount, onTabClick }
     prev.current = unsortedCount;
   }, [unsortedCount]);
 
-  const badgeFor = (view: ViewName): { count: number; mod: string } | null => {
-    if (view === 'buffer' && unsortedCount > 0) return { count: unsortedCount, mod: pulse ? ' bottom-nav__badge--pulse' : '' };
-    if (view === 'review' && reviewCount > 0) return { count: reviewCount, mod: ' bottom-nav__badge--review' };
+  const badgeFor = (view: ViewName): { count: number; mod: string; srText: string } | null => {
+    if (view === 'buffer' && unsortedCount > 0) return { count: unsortedCount, mod: pulse ? ' bottom-nav__badge--pulse' : '', srText: `${unsortedCount} unsorted` };
+    if (view === 'review' && reviewCount > 0) return { count: reviewCount, mod: ' bottom-nav__badge--review', srText: `${reviewCount} to review` };
     return null;
   };
 
   return (
-    <nav className="bottom-nav">
+    <nav className="bottom-nav" aria-label="views">
       {TABS.map(({ view, icon, label }) => {
         const badge = badgeFor(view);
         return (
@@ -45,14 +45,17 @@ export function BottomNav({ activeView, unsortedCount, reviewCount, onTabClick }
             key={view}
             className={`bottom-nav__tab${activeView === view ? ' bottom-nav__tab--active' : ''}`}
             aria-current={activeView === view ? 'page' : undefined}
-            aria-label={label}
+            data-view={view}
             onClick={() => onTabClick(view)}
           >
-            <span className="bottom-nav__icon">
+            <span className="bottom-nav__icon" aria-hidden="true">
               {icon}
               {badge && <span className={`bottom-nav__badge${badge.mod}`}>{badge.count}</span>}
             </span>
-            <span className="bottom-nav__label">{label}</span>
+            <span className="bottom-nav__label">
+              {label}
+              {badge && <span className="visually-hidden">, {badge.srText}</span>}
+            </span>
           </button>
         );
       })}

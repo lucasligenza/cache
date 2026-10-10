@@ -16,13 +16,13 @@
 
 .conn-error__title {
   color: var(--red);
-  font-size: 15px;
+  font-size: var(--fs-lg);
   margin-bottom: 8px;
 }
 
 .conn-error__msg {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   margin-bottom: 16px;
 }
 
@@ -31,7 +31,7 @@
   border: 1px solid var(--accent);
   color: var(--accent);
   font-family: var(--font);
-  font-size: 13px;
+  font-size: var(--fs-md);
   padding: 6px 14px;
   border-radius: 3px;
   cursor: pointer;

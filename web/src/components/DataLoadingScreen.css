@@ -10,7 +10,7 @@
 
 .data-loading__line {
   color: var(--text-dim);
-  font-size: 13px;
+  font-size: var(--fs-md);
   animation: cursor-blink 1s step-end infinite;
 }
 

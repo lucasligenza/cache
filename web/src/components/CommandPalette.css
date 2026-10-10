@@ -41,7 +41,7 @@
 
 .cmd-palette__prompt {
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
   text-shadow: 0 0 8px var(--accent-glow);
 }
@@ -53,13 +53,13 @@
   outline: none;
   color: var(--text);
   font-family: var(--font);
-  font-size: 13px;
+  font-size: var(--fs-md);
   caret-color: var(--accent);
 }
 
 .cmd-palette__esc {
   color: var(--text-dim);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   border: 1px solid var(--border);
   border-radius: 2px;
   padding: 1px 5px;
@@ -74,7 +74,7 @@
 .cmd-palette__empty {
   padding: 16px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .cmd-palette__item {
@@ -104,11 +104,11 @@
 }
 
 .cmd-palette__item-label {
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .cmd-palette__item-hint {
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--text-dim);
   white-space: nowrap;
 }
