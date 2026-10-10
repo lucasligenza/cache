@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { useCategories } from './useCategories';
 
 function makeChain(result: { data: unknown; error: null | { message: string } }) {
@@ -37,5 +37,30 @@ describe('useCategories', () => {
   it('does not fetch when enabled=false', () => {
     renderHook(() => useCategories(false));
     expect(supabase.from).not.toHaveBeenCalled();
+  });
+
+  it('a failed load sets error and reports it, without a toast', async () => {
+    vi.mocked(supabase.from).mockImplementation(() =>
+      makeChain({ data: null, error: { message: 'Failed to fetch' } }) as unknown as ReturnType<typeof supabase.from>
+    );
+    const onError = vi.fn();
+    const onRequestError = vi.fn();
+    const { result } = renderHook(() => useCategories(true, onError, onRequestError));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBe(true);
+    expect(onError).not.toHaveBeenCalled();
+    expect(onRequestError).toHaveBeenCalledWith('load-categories', { message: 'Failed to fetch' });
+  });
+
+  it('refetches when the network comes back', async () => {
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    const { result } = renderHook(() => useCategories());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const NEW = { ...CAT, id: 'c2', name: 'Ideas' };
+    vi.mocked(supabase.from).mockImplementation(() =>
+      makeChain({ data: [CAT, NEW], error: null }) as unknown as ReturnType<typeof supabase.from>
+    );
+    act(() => { window.dispatchEvent(new Event('online')); });
+    await waitFor(() => expect(result.current.categories).toHaveLength(2));
   });
 });
