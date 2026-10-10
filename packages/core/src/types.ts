@@ -25,4 +25,6 @@ export interface Note {
   review_muted?: boolean;
   /** Client-only: captured locally but not yet confirmed by the server. Never persisted. */
   pending?: boolean;
+  /** Client-only: the server permanently rejected this queued note (reason). It stays local until retried, edited or discarded. */
+  syncError?: string;
 }
