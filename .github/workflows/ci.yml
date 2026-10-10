@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Job ids are the status-check names branch protection requires ("web", "mobile");
+  # renaming them means updating the protection rule.
+  web:
+    name: web
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install (workspaces)
+        run: npm ci
+
+      - name: Typecheck @cache/core
+        run: npx tsc -p packages/core/tsconfig.json
+
+      - name: Build web (tsc -b + vite build)
+        run: npm run build -w web
+
+      - name: Test web + core
+        run: npm test -w web -- --run
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  # mobile/ is not a workspace member (React 19.2 vs web's React 18), so it installs from its
+  # own lockfile. It compiles @cache/core from source, so this catches core changes that break native.
+  mobile:
+    name: mobile
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
