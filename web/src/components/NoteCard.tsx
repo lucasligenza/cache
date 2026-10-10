@@ -8,7 +8,8 @@ import './NoteCard.css';
 interface Props {
   note: Note;
   categories: Category[];
-  onAssign: (noteId: string, categoryId: string) => void;
+  /** `null` un-files the note back to the buffer. */
+  onAssign: (noteId: string, categoryId: string | null) => void;
   onDelete: (noteId: string) => void;
   onUpdate?: (noteId: string, updates: Partial<Note>) => void;
   /** Promote `mv →` to a primary action (buffer triage). Otherwise it lives with the secondary actions. */
@@ -59,7 +60,8 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
     : null;
   const isOverdue = !!pingLabel && !pingFuture;
 
-  const canMove = categories.length > 0;
+  const isFiled = note.category_id !== null;
+  const canMove = categories.length > 0 || isFiled;
   const mvIsPrimary = canMove && showCategories && !reviewMode;
 
   useEffect(() => {
@@ -92,11 +94,11 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
 
   // Filing to a folder gets its own motion (glow in the category color, then
   // shrink + fly toward the folder) so it reads differently from delete.
-  const handleAssign = (cat: Category) => {
+  const handleAssign = (cat: Category | null) => {
     setPickerOpen(false);
-    setFilingColor(cat.color);
+    setFilingColor(cat ? cat.color : 'var(--text-muted)');
     setFiling(true);
-    setTimeout(() => onAssign(note.id, cat.id), 340);
+    setTimeout(() => onAssign(note.id, cat ? cat.id : null), 340);
   };
 
   const openPicker = (anchor: HTMLButtonElement | null) => {
@@ -198,6 +200,7 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
     <CategoryPicker
       categories={categories}
       anchorRef={mvAnchorRef}
+      includeBuffer={isFiled}
       onSelect={handleAssign}
       onClose={() => setPickerOpen(false)}
     />

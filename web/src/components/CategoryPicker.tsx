@@ -8,9 +8,12 @@ interface Props {
   categories: Category[];
   /** The button that opened the picker — used for placement and focus restore. */
   anchorRef: RefObject<HTMLElement>;
-  onSelect: (cat: Category) => void;
+  /** `null` = back to the buffer (un-file). */
+  onSelect: (cat: Category | null) => void;
   onClose: () => void;
   label?: string;
+  /** Offer `→ buffer` first — for notes that are currently filed. */
+  includeBuffer?: boolean;
 }
 
 const isCoarse = () =>
@@ -25,13 +28,15 @@ const POPOVER_MAX_H = 280;
  * sheet in the thumb zone. It's portalled to <body> because note cards keep a
  * transform from their enter animation, which would trap `position: fixed`.
  */
-export function CategoryPicker({ categories, anchorRef, onSelect, onClose, label = 'mv →' }: Props) {
+export function CategoryPicker({ categories, anchorRef, onSelect, onClose, label = 'mv →', includeBuffer = false }: Props) {
   const [sheet] = useState(isCoarse);
   const [active, setActive] = useState(0);
   const [pos, setPos] = useState<React.CSSProperties | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const baseId = useId();
   const optionId = (i: number) => `${baseId}-opt-${i}`;
+  const options: (Category | null)[] = includeBuffer ? [null, ...categories] : categories;
+  const optionName = (o: Category | null) => (o ? o.name : 'buffer');
 
   useLayoutEffect(() => {
     if (sheet) return;
@@ -78,14 +83,13 @@ export function CategoryPicker({ categories, anchorRef, onSelect, onClose, label
   }, [active]);
 
   const choose = (i: number) => {
-    const cat = categories[i];
-    if (cat) onSelect(cat);
+    if (i >= 0 && i < options.length) onSelect(options[i]);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Keep the app's single-key shortcuts (1-4, /, n, ?) from firing underneath.
     e.stopPropagation();
-    const last = categories.length - 1;
+    const last = options.length - 1;
     switch (e.key) {
       case 'ArrowDown': e.preventDefault(); setActive(i => Math.min(i + 1, last)); return;
       case 'ArrowUp': e.preventDefault(); setActive(i => Math.max(i - 1, 0)); return;
@@ -96,8 +100,8 @@ export function CategoryPicker({ categories, anchorRef, onSelect, onClose, label
     }
     if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
       const ch = e.key.toLowerCase();
-      const order = categories.map((_, i) => (active + 1 + i) % categories.length);
-      const hit = order.find(i => categories[i].name.toLowerCase().startsWith(ch));
+      const order = options.map((_, i) => (active + 1 + i) % options.length);
+      const hit = order.find(i => optionName(options[i]).toLowerCase().startsWith(ch));
       if (hit !== undefined) setActive(hit);
     }
   };
@@ -122,22 +126,28 @@ export function CategoryPicker({ categories, anchorRef, onSelect, onClose, label
           role="listbox"
           tabIndex={-1}
           aria-label="move to directory"
-          aria-activedescendant={categories.length ? optionId(active) : undefined}
+          aria-activedescendant={options.length ? optionId(active) : undefined}
           onKeyDown={handleKeyDown}
         >
-          {categories.map((cat, i) => (
+          {options.map((cat, i) => (
             <div
-              key={cat.id}
+              key={cat ? cat.id : '__buffer'}
               id={optionId(i)}
               role="option"
               aria-selected={i === active}
-              className={`category-picker__option${i === active ? ' category-picker__option--active' : ''}`}
-              style={{ color: cat.color }}
+              className={`category-picker__option${i === active ? ' category-picker__option--active' : ''}${cat ? '' : ' category-picker__option--buffer'}`}
+              style={cat ? { color: cat.color } : undefined}
               onMouseEnter={() => setActive(i)}
               onClick={() => choose(i)}
             >
-              <span className="category-picker__swatch" style={{ background: cat.color }} />
-              /{cat.name.toLowerCase()}
+              {cat ? (
+                <>
+                  <span className="category-picker__swatch" style={{ background: cat.color }} />
+                  /{cat.name.toLowerCase()}
+                </>
+              ) : (
+                '→ buffer'
+              )}
             </div>
           ))}
         </div>

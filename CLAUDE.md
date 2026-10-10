@@ -176,7 +176,7 @@ web/src/
 │   ├── AppHeader.tsx/.css      # Brand + live status line (counts, overdue pings, cursor)
 │   ├── BottomNav.tsx/.css      # 4 thumb tabs, amber buffer badge (pulses on increment)
 │   ├── NoteCard.tsx/.css       # Primary actions + status badges; secondary (ping/flag/pin/rm) on hover or behind ⋯
-│   ├── CategoryPicker.tsx/.css # `mv →` directory picker — popover on desktop, bottom sheet on touch (portalled)
+│   ├── CategoryPicker.tsx/.css # `mv →` directory picker (+ `→ buffer` for filed notes) — popover on desktop, bottom sheet on touch
 │   ├── CaptureBar.tsx/.css     # Auto-focused prompt, /dir slash-routing, keyboard picker, cached ✓
 │   ├── CommandPalette.tsx/.css # Ctrl/⌘-K fuzzy command runner (role=dialog + focus trap)
 │   ├── ShortcutsOverlay.tsx/.css # ? keyboard cheatsheet (role=dialog + focus trap)

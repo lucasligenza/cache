@@ -6,7 +6,7 @@ import './BufferView.css';
 interface Props {
   notes: Note[];
   categories: Category[];
-  onAssign: (noteId: string, categoryId: string) => void;
+  onAssign: (noteId: string, categoryId: string | null) => void;
   onDelete: (noteId: string) => void;
   onUpdate: (id: string, updates: Partial<Note>) => void;
   focusNoteId?: string | null;

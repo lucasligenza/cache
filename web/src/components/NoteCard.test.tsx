@@ -167,6 +167,27 @@ describe('NoteCard', () => {
     expect(screen.getByRole('button', { name: 'mv →' }).closest('.note-card__secondary')).not.toBeNull();
   });
 
+  it('a filed note can be moved back to the buffer (category_id → null)', () => {
+    vi.useFakeTimers();
+    try {
+      const onAssign = vi.fn();
+      // Board/review pass the other directories only; buffer is still a destination.
+      renderCard({ onAssign, categories: [], note: { ...mockNote, category_id: 'cat1' } });
+      fireEvent.click(screen.getByRole('button', { name: 'mv →' }));
+      fireEvent.click(screen.getByRole('option', { name: '→ buffer' }));
+      vi.advanceTimersByTime(340);
+      expect(onAssign).toHaveBeenCalledWith('1', null);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('an unsorted note is not offered → buffer', () => {
+    renderCard({ showCategories: true });
+    fireEvent.click(screen.getByRole('button', { name: 'mv →' }));
+    expect(screen.queryByRole('option', { name: '→ buffer' })).not.toBeInTheDocument();
+  });
+
   it('hides mv → when there is nowhere to move to', () => {
     renderCard({ categories: [], showCategories: true });
     expect(screen.queryByRole('button', { name: 'mv →' })).not.toBeInTheDocument();

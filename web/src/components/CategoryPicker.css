@@ -52,12 +52,20 @@
   border-left: 2px solid transparent;
 }
 
+.category-picker__option--buffer {
+  color: var(--text-muted);
+}
+
 .category-picker__option--active {
   background: var(--surface-hover);
   border-left-color: currentColor;
 }
 
-.category-picker__list:focus-visible .category-picker__option--active {
+.category-picker__list:focus-visible .category-picker__option--buffer {
+  color: var(--text-muted);
+}
+
+.category-picker__option--active {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 

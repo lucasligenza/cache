@@ -86,6 +86,28 @@ describe('CategoryPicker', () => {
     }
   });
 
+  it('includeBuffer offers → buffer first, which selects null', () => {
+    const { list, onSelect } = renderPicker({ includeBuffer: true });
+    const opts = screen.getAllByRole('option');
+    expect(opts[0]).toHaveTextContent('→ buffer');
+    expect(opts[0]).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(list, { key: 'Enter' });
+    expect(onSelect).toHaveBeenCalledWith(null);
+  });
+
+  it('type-ahead reaches → buffer with "b"', () => {
+    const { list, onSelect } = renderPicker({ includeBuffer: true });
+    fireEvent.keyDown(list, { key: 'w' });
+    fireEvent.keyDown(list, { key: 'b' });
+    fireEvent.keyDown(list, { key: 'Enter' });
+    expect(onSelect).toHaveBeenCalledWith(null);
+  });
+
+  it('omits → buffer by default', () => {
+    renderPicker();
+    expect(screen.queryByText('→ buffer')).not.toBeInTheDocument();
+  });
+
   it('clicking an option selects it; clicking the backdrop closes', () => {
     const { onSelect, onClose } = renderPicker();
     fireEvent.click(screen.getByRole('option', { name: '/school' }));
