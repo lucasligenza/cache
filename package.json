@@ -6,5 +6,8 @@
   "workspaces": [
     "web",
     "packages/*"
-  ]
+  ],
+  "engines": {
+    "node": ">=20"
+  }
 }

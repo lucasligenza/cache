@@ -11,6 +11,11 @@ function viewportOffsetTop(): number {
   return window.visualViewport?.offsetTop ?? 0;
 }
 
+/** Layout-viewport width: unchanged by the keyboard or pinch-zoom, changes on rotation. */
+function layoutWidth(): number {
+  return document.documentElement.clientWidth || window.innerWidth;
+}
+
 /**
  * Pin the app chrome to the *visual* viewport.
  *
@@ -25,15 +30,25 @@ function viewportOffsetTop(): number {
  * Keyboard-open is inferred from the visual viewport vs. the last idle height
  * (not from input focus): tapping Save blurs the field before the keyboard
  * closes, and hiding the nav on that blur would yank Save out from under the thumb.
+ *
+ * A rotation also shrinks the viewport (portrait → landscape) and its `resize`
+ * can arrive before `orientationchange`, so a layout-width change re-baselines
+ * the idle height instead of reading as a keyboard — the keyboard never changes width.
  */
 export function useVisualViewport(): void {
   useLayoutEffect(() => {
     const root = document.documentElement;
     let idleHeight = viewportHeight();
+    let idleWidth = layoutWidth();
 
     const apply = () => {
       const height = viewportHeight();
       const offsetTop = viewportOffsetTop();
+      const width = layoutWidth();
+      if (width !== idleWidth) {
+        idleWidth = width;
+        idleHeight = height;
+      }
       root.style.setProperty('--vv-height', `${height}px`);
       root.style.setProperty('--vv-offset-top', `${offsetTop}px`);
 
@@ -50,6 +65,7 @@ export function useVisualViewport(): void {
 
     const onOrientation = () => {
       idleHeight = viewportHeight();
+      idleWidth = layoutWidth();
       apply();
     };
 

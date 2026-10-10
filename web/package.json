@@ -11,11 +11,13 @@
     "generate-pwa-assets": "pwa-assets-generator"
   },
   "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.3.0",
     "@supabase/supabase-js": "^2.45.0",
     "date-fns": "^3.6.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "workbox-cacheable-response": "^7.4.0",
+    "workbox-core": "^7.4.1",
     "workbox-expiration": "^7.4.0",
     "workbox-precaching": "^7.4.0",
     "workbox-routing": "^7.4.0",
@@ -23,11 +25,11 @@
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.6",
-    "@vite-pwa/assets-generator": "^1.0.0",
     "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.5.2",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.1",
+    "@vite-pwa/assets-generator": "^1.0.0",
     "@vitejs/plugin-react": "^4.3.1",
     "jsdom": "^25.0.0",
     "typescript": "^5.5.3",

@@ -1,0 +1,67 @@
+/*
+ * Phone / installed-app platform behaviour. Imported last in main.tsx so it
+ * follows component CSS; holds no design tokens. Most of this is about not
+ * feeling like a web page on iOS.
+ */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  /* No double-tap-to-zoom delay; pinch-zoom still works. */
+  touch-action: manipulation;
+  /* Dark keyboard, date picker and scrollbars on the dark theme. */
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* Chrome is UI, not content: long-press shouldn't select labels or pop the callout. */
+button,
+.app-header,
+.bottom-nav {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Replaces the tap highlight removed above with feedback that follows the theme. */
+@media (pointer: coarse) {
+  button:active:not(:disabled) {
+    opacity: 0.7;
+  }
+}
+
+/* Full-screen gates (login, connection error) scroll when they don't fit —
+   landscape, or the keyboard is up. The app shell itself is position:fixed. */
+#root {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Keep the list's bounce inside the list instead of chaining to the page. */
+.app-shell__content {
+  overscroll-behavior-y: contain;
+}
+
+/* Landscape: keep content clear of the notch / Dynamic Island. */
+.app-shell {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/*
+ * Phones: toasts drop from under the header instead of covering the tabs and
+ * home indicator; bottom-fixed elements also sit behind the iOS keyboard.
+ */
+@media (max-width: 600px) {
+  .toast-stack {
+    top: calc(var(--vv-offset-top, 0px) + env(safe-area-inset-top) + 44px);
+    bottom: auto;
+    left: calc(12px + env(safe-area-inset-left));
+    right: calc(12px + env(safe-area-inset-right));
+    width: auto;
+  }
+}

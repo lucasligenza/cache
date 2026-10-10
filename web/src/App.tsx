@@ -33,7 +33,11 @@ export default function App() {
   useVisualViewport();
   const { showToast } = useToast();
   const { user, loading: authLoading, signIn, signUp, signInAsGuest, upgradeGuest, signOut } = useAuth();
-  const [booted, setBooted] = useState(() => sessionStorage.getItem('cn_booted') === '1');
+  // Boot animation plays on the first-ever launch only: iOS cold-starts a
+  // home-screen app (fresh session) on nearly every open.
+  const [booted, setBooted] = useState(
+    () => localStorage.getItem('cn_booted') === '1' || sessionStorage.getItem('cn_booted') === '1'
+  );
   const [activeView, setActiveView] = useState<ViewName>('buffer');
   const [theme, setTheme] = useState<'dark' | 'light'>(() =>
     (localStorage.getItem('cn_theme') as 'dark' | 'light') || 'dark'
@@ -174,6 +178,7 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#F5F5F0' : '#1a1a1a');
     localStorage.setItem('cn_theme', theme);
   }, [theme]);
 
@@ -303,7 +308,7 @@ export default function App() {
   }
 
   if (!booted) {
-    return <BootSequence onDone={() => { sessionStorage.setItem('cn_booted', '1'); setBooted(true); }} />;
+    return <BootSequence onDone={() => { localStorage.setItem('cn_booted', '1'); setBooted(true); }} />;
   }
 
   if (notesLoading || catsLoading) {

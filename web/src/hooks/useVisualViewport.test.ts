@@ -41,6 +41,7 @@ describe('useVisualViewport', () => {
 
   beforeEach(() => {
     vi.stubGlobal('innerHeight', innerHeight);
+    vi.stubGlobal('innerWidth', 390);
     document.documentElement.removeAttribute('data-keyboard');
     document.documentElement.style.removeProperty('--vv-height');
     document.documentElement.style.removeProperty('--vv-offset-top');
@@ -109,6 +110,33 @@ describe('useVisualViewport', () => {
     vv.height = 480;
     act(() => vv.dispatch('resize'));
     expect(document.documentElement.getAttribute('data-keyboard')).toBe('open');
+    vv.height = 844;
+    act(() => vv.dispatch('resize'));
+    expect(document.documentElement.getAttribute('data-keyboard')).toBeNull();
+  });
+
+  it('does not read a rotation to landscape as the keyboard opening (resize before orientationchange)', () => {
+    const vv = mockVisualViewport({ height: 844 });
+    renderHook(() => useVisualViewport());
+    vi.stubGlobal('innerWidth', 844);
+    vv.height = 390;
+    act(() => vv.dispatch('resize'));
+    expect(document.documentElement.getAttribute('data-keyboard')).toBeNull();
+    expect(document.documentElement.style.getPropertyValue('--vv-height')).toBe('390px');
+  });
+
+  it('still detects the keyboard in landscape, and clears it after rotating back', () => {
+    const vv = mockVisualViewport({ height: 844 });
+    renderHook(() => useVisualViewport());
+    vi.stubGlobal('innerWidth', 844);
+    vv.height = 390;
+    act(() => vv.dispatch('resize'));
+    vv.height = 390 - 200;
+    act(() => vv.dispatch('resize'));
+    expect(document.documentElement.getAttribute('data-keyboard')).toBe('open');
+    vv.height = 390;
+    act(() => vv.dispatch('resize'));
+    vi.stubGlobal('innerWidth', 390);
     vv.height = 844;
     act(() => vv.dispatch('resize'));
     expect(document.documentElement.getAttribute('data-keyboard')).toBeNull();
