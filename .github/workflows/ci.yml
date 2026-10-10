@@ -37,8 +37,12 @@ jobs:
       - name: Typecheck @cache/core
         run: npx tsc -p packages/core/tsconfig.json
 
+      # vite build refuses to run without these; CI only needs them present, not real.
       - name: Build web (tsc -b + vite build)
         run: npm run build -w web
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_ANON_KEY: ci-placeholder-anon-key
 
       - name: Test web + core
         run: npm test -w web -- --run
