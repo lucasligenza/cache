@@ -434,48 +434,50 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
           </button>
         </div>
 
-        {reviewMode && (
+        <div className="note-card__actions">
+          {reviewMode && (
+            <button
+              type="button"
+              className="note-card__chip note-card__chip--quiet note-card__chip--snooze"
+              aria-expanded={pingOpen}
+              onClick={togglePingPanel}
+            >
+              snooze
+            </button>
+          )}
+          {reviewMode && (
+            <button
+              type="button"
+              className="note-card__chip note-card__chip--primary"
+              onClick={markReviewed}
+              title={isOverdue ? 'done — clear the ping' : 'seen — stop showing this today'}
+            >
+              {isOverdue ? '✓ done' : '✓ seen'}
+            </button>
+          )}
+          {mvIsPrimary && (
+            <button
+              ref={primaryMvRef}
+              type="button"
+              className="note-card__chip note-card__chip--mv"
+              aria-haspopup="listbox"
+              aria-expanded={pickerOpen}
+              onClick={() => openPicker(primaryMvRef.current)}
+            >
+              mv →
+            </button>
+          )}
           <button
             type="button"
-            className="note-card__chip note-card__chip--quiet note-card__chip--snooze"
-            aria-expanded={pingOpen}
-            onClick={togglePingPanel}
+            className="note-card__more"
+            aria-label="more actions"
+            aria-expanded={moreOpen}
+            aria-controls={secondaryId}
+            onClick={() => setMoreOpen(o => !o)}
           >
-            snooze
+            ⋯
           </button>
-        )}
-        {reviewMode && (
-          <button
-            type="button"
-            className="note-card__chip note-card__chip--primary"
-            onClick={markReviewed}
-            title={isOverdue ? 'done — clear the ping' : 'seen — stop showing this today'}
-          >
-            {isOverdue ? '✓ done' : '✓ seen'}
-          </button>
-        )}
-        {mvIsPrimary && (
-          <button
-            ref={primaryMvRef}
-            type="button"
-            className="note-card__chip note-card__chip--mv"
-            aria-haspopup="listbox"
-            aria-expanded={pickerOpen}
-            onClick={() => openPicker(primaryMvRef.current)}
-          >
-            mv →
-          </button>
-        )}
-        <button
-          type="button"
-          className="note-card__more"
-          aria-label="more actions"
-          aria-expanded={moreOpen}
-          aria-controls={secondaryId}
-          onClick={() => setMoreOpen(o => !o)}
-        >
-          ⋯
-        </button>
+        </div>
       </div>
 
       {pingOpen && pingPanel}

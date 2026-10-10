@@ -141,6 +141,14 @@
   flex-wrap: wrap;
 }
 
+/* Primary actions + ⋯ wrap as one unit so a tight row never orphans ⋯. */
+.note-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
 .note-card__chip,
 .note-card__badge,
 .note-card__more {
@@ -347,6 +355,7 @@
   }
 
   .note-card__meta,
+  .note-card__actions,
   .note-card__ping-row {
     gap: 8px;
   }
