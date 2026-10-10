@@ -160,6 +160,13 @@
   cursor: not-allowed;
 }
 
+.login-screen__guest-note {
+  margin: 12px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--amber);
+}
+
 .login-screen__toggle {
   margin-top: 24px;
   font-size: 12px;

@@ -172,6 +172,7 @@
 .settings-row__warn {
   color: var(--amber);
   font-size: 12px;
+  line-height: 1.45;
 }
 
 .settings-row__value--ok {

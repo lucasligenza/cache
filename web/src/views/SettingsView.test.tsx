@@ -27,6 +27,15 @@ describe('SettingsView', () => {
     expect(screen.getByText(/can't be recovered after logout/i)).toBeInTheDocument();
   });
 
+  it('tells guests to create an account before adding the app to the home screen', () => {
+    const { rerender } = render(<SettingsView {...props({ isGuest: true })} />);
+    expect(screen.getByText(/guest notes stay in the browser they were made in/)).toBeInTheDocument();
+    expect(screen.getByText(/create an account before adding the app to the home screen/)).toBeInTheDocument();
+
+    rerender(<SettingsView {...props({ userEmail: 'a@b.com' })} />);
+    expect(screen.queryByText(/home screen/)).not.toBeInTheDocument();
+  });
+
   it('logs a real account out in one click', async () => {
     const user = userEvent.setup();
     const onSignOut = vi.fn();

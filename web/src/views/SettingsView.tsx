@@ -145,11 +145,18 @@ export function SettingsView({ userEmail, isGuest = false, noteCount = 0, pendin
             <span className="settings-row__value">{userEmail}</span>
           </div>
           {isGuest && (
-            <div className="settings-row">
-              <span className="settings-row__warn">
-                guest session — notes live only in this browser and can't be recovered after logout
-              </span>
-            </div>
+            <>
+              <div className="settings-row">
+                <span className="settings-row__warn">
+                  guest session — notes live only in this browser and can't be recovered after logout
+                </span>
+              </div>
+              <div className="settings-row">
+                <span className="settings-row__warn">
+                  guest notes stay in the browser they were made in — create an account before adding the app to the home screen
+                </span>
+              </div>
+            </>
           )}
           {isGuest && storageState && storageState !== 'unsupported' && (
             <div className="settings-row">

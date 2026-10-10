@@ -65,6 +65,24 @@ describe('LoginScreen', () => {
     expect(screen.getByText('8+ chars ✓')).toBeInTheDocument();
   });
 
+  it('warns that guest notes stay in the browser they were made in', () => {
+    render(<LoginScreen onSignIn={vi.fn()} onSignUp={vi.fn()} onGuest={vi.fn()} />);
+    expect(screen.getByText(/guest notes stay in the browser they were made in/)).toBeInTheDocument();
+    expect(screen.getByText(/create an account before adding the app to the home screen/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('[register]'));
+    expect(screen.getByText(/adding the app to the home screen/)).toBeInTheDocument();
+  });
+
+  it('hides the home-screen note when guest mode is unavailable or resetting', () => {
+    const { rerender } = render(<LoginScreen onSignIn={vi.fn()} onSignUp={vi.fn()} />);
+    expect(screen.queryByText(/home screen/)).not.toBeInTheDocument();
+
+    rerender(<LoginScreen onSignIn={vi.fn()} onSignUp={vi.fn()} onGuest={vi.fn()} onResetPassword={vi.fn()} />);
+    fireEvent.click(screen.getByText('[forgot password]'));
+    expect(screen.queryByText(/home screen/)).not.toBeInTheDocument();
+  });
+
   it('passes the guest-mode error through verbatim', async () => {
     const onGuest = vi.fn().mockResolvedValue({ error: 'guest mode unavailable — sign up instead' });
     render(<LoginScreen onSignIn={vi.fn()} onSignUp={vi.fn()} onGuest={onGuest} />);

@@ -169,6 +169,9 @@ export function LoginScreen({ onSignIn, onSignUp, onGuest, onResetPassword, init
               <span className="login-screen__submit-prefix">$</span>
               continue as guest
             </button>
+            <p className="login-screen__guest-note">
+              guest notes stay in the browser they were made in — create an account before adding the app to the home screen
+            </p>
           </>
         )}
 
