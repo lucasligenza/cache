@@ -25,6 +25,7 @@ import { ArchiveView } from './views/ArchiveView';
 import { ReviewView } from './views/ReviewView';
 import { buildReviewSet } from './lib/review';
 import { exportJson, exportMarkdown } from './lib/exporter';
+import { deleteMyAccount } from './lib/deleteMyAccount';
 import { requestPersistentStorage, type PersistState } from './lib/persist';
 import { guestNudgeDue } from '@cache/core';
 import { NewPasswordScreen } from './components/NewPasswordScreen';
@@ -203,6 +204,13 @@ export default function App() {
     const { error } = await signOut();
     if (error) showToast('error', `logout failed — ${error}`);
   }, [signOut, showToast]);
+
+  const handleDeleteAccount = useCallback(async () => {
+    if (!user) return { error: 'not signed in' };
+    const result = await deleteMyAccount(user.id);
+    if (!result.error) showToast('ok', 'account deleted');
+    return result;
+  }, [user, showToast]);
 
   const handleUpdatePassword = useCallback(async (password: string) => {
     const result = await updatePassword(password);
@@ -470,6 +478,7 @@ export default function App() {
             onExportJson={handleExportJson}
             onExportMarkdown={handleExportMarkdown}
             onUpgradeAccount={isGuest ? handleUpgradeAccount : undefined}
+            onDeleteAccount={handleDeleteAccount}
           />
         )}
         {activeView === 'review' && (

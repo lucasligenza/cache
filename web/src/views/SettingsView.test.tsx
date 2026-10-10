@@ -17,6 +17,7 @@ function props(overrides: Partial<Parameters<typeof SettingsView>[0]> = {}) {
     onOpenArchive: vi.fn(),
     onExportJson: vi.fn(),
     onExportMarkdown: vi.fn(),
+    onDeleteAccount: vi.fn().mockResolvedValue({ error: null }),
     ...overrides,
   };
 }
@@ -157,5 +158,54 @@ describe('SettingsView', () => {
 
     expect(onUpgradeAccount).toHaveBeenCalledWith('real@b.com', 'password123');
     expect(await screen.findByText(/check your email to confirm/i)).toBeInTheDocument();
+  });
+
+  describe('delete account', () => {
+    it('requires typing delete before it runs', async () => {
+      const user = userEvent.setup();
+      const onDeleteAccount = vi.fn().mockResolvedValue({ error: null });
+      render(<SettingsView {...props({ userEmail: 'a@b.com', noteCount: 4, onDeleteAccount })} />);
+
+      await user.click(screen.getByRole('button', { name: '$ delete account' }));
+      expect(screen.getByText(/permanently deletes your account, 4 notes/)).toBeInTheDocument();
+      const confirm = screen.getByRole('button', { name: '[delete forever]' });
+      expect(confirm).toBeDisabled();
+      expect(onDeleteAccount).not.toHaveBeenCalled();
+
+      await user.type(screen.getByLabelText('confirm'), 'DELETE');
+      expect(confirm).toBeDisabled();
+      await user.clear(screen.getByLabelText('confirm'));
+      await user.type(screen.getByLabelText('confirm'), 'delete');
+      expect(confirm).toBeEnabled();
+      await user.click(confirm);
+      expect(onDeleteAccount).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows the server error and keeps the form open', async () => {
+      const user = userEvent.setup();
+      const onDeleteAccount = vi.fn().mockResolvedValue({ error: 'could not delete your notes' });
+      render(<SettingsView {...props({ onDeleteAccount })} />);
+      await user.click(screen.getByRole('button', { name: '$ delete account' }));
+      await user.type(screen.getByLabelText('confirm'), 'delete');
+      await user.click(screen.getByRole('button', { name: '[delete forever]' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('could not delete your notes');
+      expect(screen.getByLabelText('confirm')).toBeInTheDocument();
+    });
+
+    it('cancels with Escape and returns focus to delete account', async () => {
+      const user = userEvent.setup();
+      render(<SettingsView {...props()} />);
+      await user.click(screen.getByRole('button', { name: '$ delete account' }));
+      await user.keyboard('{Escape}');
+      expect(screen.queryByLabelText('confirm')).not.toBeInTheDocument();
+      await vi.waitFor(() => expect(screen.getByRole('button', { name: '$ delete account' })).toHaveFocus());
+    });
+
+    it('links the draft privacy policy and terms', () => {
+      render(<SettingsView {...props()} />);
+      expect(screen.getByRole('link', { name: 'privacy' })).toHaveAttribute('href', '/privacy.html');
+      expect(screen.getByRole('link', { name: 'terms' })).toHaveAttribute('href', '/terms.html');
+      expect(screen.getByText('draft')).toBeInTheDocument();
+    });
   });
 });

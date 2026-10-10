@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent } from 'react';
 import { MIN_PASSWORD_LENGTH } from '@cache/core';
+import { DELETE_CONFIRM_WORD } from '../lib/deleteAccount';
+import { LEGAL_PAGES } from '../lib/legalRoutes';
 import type { PersistState } from '../lib/persist';
 import './SettingsView.css';
 
@@ -30,6 +32,8 @@ interface Props {
   onExportJson: () => void;
   onExportMarkdown: () => void;
   onUpgradeAccount?: (email: string, password: string) => Promise<{ error: string | null; successMessage?: string }>;
+  /** Deletes notes, directories, push subscriptions, and the auth user. */
+  onDeleteAccount: () => Promise<{ error: string | null }>;
 }
 
 const ACCENT_OPTIONS: { key: string; color: string }[] = [
@@ -43,7 +47,7 @@ const ACCENT_OPTIONS: { key: string; color: string }[] = [
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-export function SettingsView({ userEmail, isGuest = false, noteCount = 0, pendingCount = 0, storageState = null, initialUpgradeOpen = false, theme, accent, onThemeChange, onAccentChange, onSignOut, pushConfigured = true, pushStatus, onEnableNotifications, onDisableNotifications, onOpenArchive, archivedCount = 0, onExportJson, onExportMarkdown, onUpgradeAccount }: Props) {
+export function SettingsView({ userEmail, isGuest = false, noteCount = 0, pendingCount = 0, storageState = null, initialUpgradeOpen = false, theme, accent, onThemeChange, onAccentChange, onSignOut, pushConfigured = true, pushStatus, onEnableNotifications, onDisableNotifications, onOpenArchive, archivedCount = 0, onExportJson, onExportMarkdown, onUpgradeAccount, onDeleteAccount }: Props) {
   const canUpgrade = isGuest && !!onUpgradeAccount;
   const [upgradeOpen, setUpgradeOpen] = useState(initialUpgradeOpen && canUpgrade);
   const [email, setEmail] = useState('');
@@ -54,13 +58,20 @@ export function SettingsView({ userEmail, isGuest = false, noteCount = 0, pendin
   const [confirmingLogout, setConfirmingLogout] = useState(false);
   const [exported, setExported] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const guardRef = useRef<HTMLDivElement>(null);
   const logoutRef = useRef<HTMLButtonElement>(null);
+  const deleteBtnRef = useRef<HTMLButtonElement>(null);
+  const deleteInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (initialUpgradeOpen && canUpgrade) {
       setConfirmingLogout(false);
+      setConfirmingDelete(false);
       setUpgradeOpen(true);
     }
   }, [initialUpgradeOpen, canUpgrade]);
@@ -72,6 +83,10 @@ export function SettingsView({ userEmail, isGuest = false, noteCount = 0, pendin
   useEffect(() => {
     if (confirmingLogout) guardRef.current?.querySelector('button')?.focus();
   }, [confirmingLogout]);
+
+  useEffect(() => {
+    if (confirmingDelete) deleteInputRef.current?.focus();
+  }, [confirmingDelete]);
 
   const handleUpgrade = async (e: FormEvent) => {
     e.preventDefault();
@@ -87,6 +102,7 @@ export function SettingsView({ userEmail, isGuest = false, noteCount = 0, pendin
   };
 
   const handleLogoutClick = () => {
+    setConfirmingDelete(false);
     if (isGuest) setConfirmingLogout(true);
     else void onSignOut();
   };
@@ -119,6 +135,39 @@ export function SettingsView({ userEmail, isGuest = false, noteCount = 0, pendin
     if (e.key === 'Escape') { e.stopPropagation(); cancelLogout(); }
   };
 
+  const startDelete = () => {
+    setConfirmingLogout(false);
+    setConfirmText('');
+    setDeleteError(null);
+    setConfirmingDelete(true);
+  };
+
+  const cancelDelete = () => {
+    setConfirmingDelete(false);
+    setConfirmText('');
+    setDeleteError(null);
+    setTimeout(() => deleteBtnRef.current?.focus(), 0);
+  };
+
+  const confirmDelete = async (e: FormEvent) => {
+    e.preventDefault();
+    if (confirmText !== DELETE_CONFIRM_WORD || deleting) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const result = await onDeleteAccount();
+      if (result.error) setDeleteError(result.error);
+    } catch {
+      setDeleteError('could not delete account');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const onDeleteKey = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') { e.stopPropagation(); cancelDelete(); }
+  };
+
   const eraseTotal = noteCount + archivedCount;
   const eraseDetail = [
     archivedCount > 0 && `${archivedCount} in trash`,
@@ -127,6 +176,14 @@ export function SettingsView({ userEmail, isGuest = false, noteCount = 0, pendin
   const eraseSummary = eraseTotal > 0
     ? `logout will erase ${plural(eraseTotal, 'note')}${eraseDetail ? ` (${eraseDetail})` : ''}`
     : 'logout ends this guest session';
+  const deleteDetail = [
+    eraseTotal > 0 && plural(eraseTotal, 'note'),
+    pendingCount > 0 && `${pendingCount} not yet synced`,
+  ].filter(Boolean).join(', ');
+  const deleteSummary = deleteDetail
+    ? `this permanently deletes your account, ${deleteDetail}, your directories, and reminders`
+    : 'this permanently deletes your account, your directories, and reminders';
+  const confirmMatches = confirmText === DELETE_CONFIRM_WORD;
 
   return (
     <div className="settings-view">
@@ -255,6 +312,51 @@ export function SettingsView({ userEmail, isGuest = false, noteCount = 0, pendin
               </div>
             </div>
           )}
+          {!confirmingDelete ? (
+            <div className="settings-row">
+              <button ref={deleteBtnRef} className="settings-btn settings-btn--danger" onClick={startDelete}>
+                $ delete account
+              </button>
+            </div>
+          ) : (
+            <form
+              className="settings-danger"
+              onSubmit={confirmDelete}
+              onKeyDown={onDeleteKey}
+              aria-labelledby="delete-account-msg"
+            >
+              <p id="delete-account-msg" className="settings-danger__msg">
+                ! {deleteSummary}. type {DELETE_CONFIRM_WORD} to confirm — this can't be undone
+              </p>
+              <label className="settings-upgrade__label" htmlFor="delete-confirm">confirm</label>
+              <input
+                ref={deleteInputRef}
+                id="delete-confirm"
+                className="settings-upgrade__input"
+                value={confirmText}
+                onChange={e => setConfirmText(e.target.value)}
+                autoComplete="off"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                aria-describedby="delete-account-msg"
+                aria-invalid={deleteError ? true : undefined}
+              />
+              {deleteError && <p className="settings-danger__error" role="alert">{deleteError}</p>}
+              <div className="settings-guard__actions">
+                <button
+                  className="settings-btn settings-btn--danger"
+                  type="submit"
+                  disabled={!confirmMatches || deleting}
+                >
+                  {deleting ? 'deleting...' : '[delete forever]'}
+                </button>
+                <button className="settings-btn settings-btn--muted" type="button" onClick={cancelDelete}>
+                  cancel
+                </button>
+              </div>
+            </form>
+          )}
         </section>
 
         {/* Theme */}
@@ -346,6 +448,16 @@ export function SettingsView({ userEmail, isGuest = false, noteCount = 0, pendin
             <button className="settings-btn settings-btn--muted" onClick={onExportMarkdown} style={{ marginLeft: '16px' }}>
               export md
             </button>
+          </div>
+        </section>
+
+        {/* Legal */}
+        <section className="settings-section">
+          <div className="settings-section__label">legal</div>
+          <div className="settings-row settings-row--inline">
+            <a className="settings-legal" href={LEGAL_PAGES[0]}>privacy</a>
+            <a className="settings-legal" href={LEGAL_PAGES[1]}>terms</a>
+            <span className="settings-row__dim">draft</span>
           </div>
         </section>
 

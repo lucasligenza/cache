@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { MIN_PASSWORD_LENGTH } from '@cache/core';
+import { LEGAL_PAGES } from '../lib/legalRoutes';
 import './LoginScreen.css';
 
 type AuthResult = { error: string | null; successMessage?: string };
@@ -201,6 +202,13 @@ export function LoginScreen({ onSignIn, onSignUp, onGuest, onResetPassword, init
             </>
           )}
         </div>
+
+        <p className="login-screen__legal">
+          <a href={LEGAL_PAGES[0]}>privacy</a>
+          <span aria-hidden="true"> · </span>
+          <a href={LEGAL_PAGES[1]}>terms</a>
+          <span className="login-screen__legal-draft">draft</span>
+        </p>
       </div>
     </div>
   );

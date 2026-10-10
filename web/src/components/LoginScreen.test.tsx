@@ -117,6 +117,16 @@ describe('LoginScreen', () => {
     expect(screen.getByText('sign in to your cache')).toBeInTheDocument();
   });
 
+  it('links the draft privacy policy and terms', () => {
+    const { rerender } = render(<LoginScreen onSignIn={vi.fn()} onSignUp={vi.fn()} />);
+    expect(screen.getByRole('link', { name: 'privacy' })).toHaveAttribute('href', '/privacy.html');
+    expect(screen.getByRole('link', { name: 'terms' })).toHaveAttribute('href', '/terms.html');
+    expect(screen.getByText('draft')).toBeInTheDocument();
+
+    rerender(<LoginScreen onSignIn={vi.fn()} onSignUp={vi.fn()} onResetPassword={vi.fn()} initialMode="reset" />);
+    expect(screen.getByRole('link', { name: 'privacy' })).toBeInTheDocument();
+  });
+
   it('opens in reset mode with an expired-link error from the redirect', () => {
     render(
       <LoginScreen

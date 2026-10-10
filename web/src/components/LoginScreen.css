@@ -195,3 +195,24 @@
   margin: 0;
   padding: 8px 0 0 0;
 }
+
+.login-screen__legal {
+  margin: 28px 0 0;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.login-screen__legal a {
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.login-screen__legal a:hover {
+  color: var(--accent);
+}
+
+.login-screen__legal-draft {
+  margin-left: 6px;
+  color: var(--amber);
+}
