@@ -48,6 +48,7 @@ describe('SettingsView', () => {
 
       expect(onSignOut).not.toHaveBeenCalled();
       expect(screen.getByText(/logout will erase 12 notes \(2 not yet synced\)/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /\$ create account/ })).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: '[create account first]' })).toHaveFocus();
     });
 
@@ -87,6 +88,13 @@ describe('SettingsView', () => {
       await user.keyboard('{Escape}');
       expect(screen.queryByRole('button', { name: '[erase & logout]' })).not.toBeInTheDocument();
       await vi.waitFor(() => expect(screen.getByRole('button', { name: '$ logout' })).toHaveFocus());
+    });
+
+    it('counts trashed notes in what gets erased', async () => {
+      const user = userEvent.setup();
+      render(<SettingsView {...guestProps({ noteCount: 14, archivedCount: 2, pendingCount: 0 })} />);
+      await user.click(screen.getByRole('button', { name: '$ logout' }));
+      expect(screen.getByText(/logout will erase 16 notes \(2 in trash\)/)).toBeInTheDocument();
     });
 
     it('still confirms for an empty guest session', async () => {

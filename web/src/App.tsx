@@ -452,7 +452,7 @@ export default function App() {
           <SettingsView
             userEmail={isGuest ? 'guest' : (user.email ?? '')}
             isGuest={isGuest}
-            noteCount={notes.length + archived.length}
+            noteCount={notes.length}
             pendingCount={pendingCount}
             storageState={storageState}
             initialUpgradeOpen={upgradeIntent}

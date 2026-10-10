@@ -7,7 +7,7 @@ import './SettingsView.css';
 interface Props {
   userEmail: string;
   isGuest?: boolean;
-  /** Active + trashed notes — what a guest logout erases. */
+  /** Active notes; a guest logout erases these plus `archivedCount`. */
   noteCount?: number;
   /** Captures still waiting to sync. */
   pendingCount?: number;
@@ -119,8 +119,13 @@ export function SettingsView({ userEmail, isGuest = false, noteCount = 0, pendin
     if (e.key === 'Escape') { e.stopPropagation(); cancelLogout(); }
   };
 
-  const eraseSummary = noteCount > 0
-    ? `logout will erase ${plural(noteCount, 'note')}${pendingCount > 0 ? ` (${pendingCount} not yet synced)` : ''}`
+  const eraseTotal = noteCount + archivedCount;
+  const eraseDetail = [
+    archivedCount > 0 && `${archivedCount} in trash`,
+    pendingCount > 0 && `${pendingCount} not yet synced`,
+  ].filter(Boolean).join(', ');
+  const eraseSummary = eraseTotal > 0
+    ? `logout will erase ${plural(eraseTotal, 'note')}${eraseDetail ? ` (${eraseDetail})` : ''}`
     : 'logout ends this guest session';
 
   return (
@@ -156,7 +161,7 @@ export function SettingsView({ userEmail, isGuest = false, noteCount = 0, pendin
               )}
             </div>
           )}
-          {canUpgrade && (
+          {canUpgrade && !confirmingLogout && (
             <div className="settings-upgrade">
               {!upgradeOpen ? (
                 <button className="settings-btn settings-btn--accent" onClick={() => setUpgradeOpen(true)}>
