@@ -1,5 +1,6 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useId } from 'react';
 import { Category } from '../types';
+import { parseSlashRoute } from '../lib/slashRoute';
 import { useToast } from './Toast';
 import './CaptureBar.css';
 
@@ -19,17 +20,13 @@ export function CaptureBar({ categories, onCommit }: Props) {
   const { showToast } = useToast();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Detect a leading `/dir ` that matches an existing category and route there.
-  const slashMatch = (() => {
-    const m = text.match(/^\/(\S+)(?:\s+([\s\S]*))?$/);
-    if (!m) return null;
-    const cat = categories.find(c => c.name.toLowerCase() === m[1].toLowerCase());
-    if (!cat) return null;
-    return { cat, body: m[2] ?? '' };
-  })();
+  const listboxId = useId();
+  const optionId = (idx: number) => `${listboxId}-opt-${idx}`;
+
+  const slashRoute = parseSlashRoute(text, categories);
 
   const selectedCat = selectedCatId ? categories.find(c => c.id === selectedCatId) : null;
-  const targetCat = slashMatch ? slashMatch.cat : selectedCat;
+  const targetCat = slashRoute.kind === 'match' ? slashRoute.category : selectedCat;
   const catLabel = targetCat ? `→ /${targetCat.name.toLowerCase()}` : '→ buffer';
 
   // buffer(null) + each category, for keyboard navigation of the picker
@@ -52,22 +49,18 @@ export function CaptureBar({ categories, onCommit }: Props) {
     //  - known /dir with a body → route to that category
     //  - known /dir with no body → hint, keep the text (nothing to cache yet)
     //  - unknown /dir → file the note verbatim to buffer and say so
-    const m = text.match(/^\/(\S+)(?:\s+([\s\S]*))?$/);
-    if (m) {
-      const cat = categories.find(c => c.name.toLowerCase() === m[1].toLowerCase());
-      if (cat) {
-        const routed = (m[2] ?? '').trim();
-        if (!routed) {
-          showToast('warn', `add a note after /${cat.name.toLowerCase()}`);
-          return;
-        }
-        body = routed;
-        catId = cat.id;
-      } else {
-        showToast('warn', `no category '${m[1]}' — filed to buffer`);
-        body = text.trim();
-        catId = undefined;
+    const route = parseSlashRoute(text, categories);
+    if (route.kind === 'match') {
+      if (!route.body) {
+        showToast('warn', `add a note after /${route.category.name.toLowerCase()}`);
+        return;
       }
+      body = route.body;
+      catId = route.category.id;
+    } else if (route.kind === 'unknown') {
+      showToast('warn', `no category '${route.token}' — filed to buffer`);
+      body = text.trim();
+      catId = undefined;
     }
     if (!body) return;
 
@@ -103,24 +96,40 @@ export function CaptureBar({ categories, onCommit }: Props) {
     setPickerOpen(true);
   };
 
+  // Arrow/Enter/Escape navigation while the picker is open. Tab closes it but is
+  // never swallowed, so focus can always move on (WCAG 2.1.2 No Keyboard Trap).
+  const handlePickerKeys = (e: React.KeyboardEvent): boolean => {
+    if (!pickerOpen) return false;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setPickerIndex(i => Math.min(i + 1, pickerOptions.length - 1)); return true; }
+    if (e.key === 'ArrowUp') { e.preventDefault(); setPickerIndex(i => Math.max(i - 1, 0)); return true; }
+    if (e.key === 'Enter') { e.preventDefault(); selectByIndex(pickerIndex); return true; }
+    if (e.key === 'Escape') { e.preventDefault(); setPickerOpen(false); return true; }
+    if (e.key === 'Tab') { setPickerOpen(false); return true; }
+    return false;
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (pickerOpen) {
-      if (e.key === 'ArrowDown') { e.preventDefault(); setPickerIndex(i => Math.min(i + 1, pickerOptions.length - 1)); return; }
-      if (e.key === 'ArrowUp') { e.preventDefault(); setPickerIndex(i => Math.max(i - 1, 0)); return; }
-      if (e.key === 'Enter') { e.preventDefault(); selectByIndex(pickerIndex); return; }
-      if (e.key === 'Escape') { e.preventDefault(); setPickerOpen(false); return; }
-      if (e.key === 'Tab') { e.preventDefault(); setPickerOpen(false); return; }
-    }
+    if (handlePickerKeys(e)) return;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleCommit();
     }
-    if (e.key === 'Tab') {
+    // Tab is a shortcut to the picker only once there's something to file;
+    // on an empty field (the default focus) and with Shift it moves focus.
+    if (e.key === 'Tab' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && text.trim()) {
       e.preventDefault();
       openPicker();
     }
     if (e.key === 'Escape') {
       setPickerOpen(false);
+    }
+  };
+
+  const handleCatBtnKeyDown = (e: React.KeyboardEvent) => {
+    if (handlePickerKeys(e)) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      openPicker();
     }
   };
 
@@ -140,6 +149,8 @@ export function CaptureBar({ categories, onCommit }: Props) {
           value={text}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
+          aria-controls={pickerOpen ? listboxId : undefined}
+          aria-activedescendant={pickerOpen ? optionId(pickerIndex) : undefined}
           onFocus={() => {
             setFocused(true);
             // iOS pans the document to the focused field; the shell is pinned
@@ -157,16 +168,29 @@ export function CaptureBar({ categories, onCommit }: Props) {
       <div className="capture-bar__footer">
         <div className="capture-bar__cat-wrap">
           <button
+            type="button"
+            role="combobox"
+            aria-label="file to"
+            aria-haspopup="listbox"
+            aria-expanded={pickerOpen}
+            aria-controls={pickerOpen ? listboxId : undefined}
+            aria-activedescendant={pickerOpen ? optionId(pickerIndex) : undefined}
             className="capture-bar__cat-btn"
             onClick={() => (pickerOpen ? setPickerOpen(false) : openPicker())}
+            onKeyDown={handleCatBtnKeyDown}
             style={targetCat ? { color: targetCat.color, borderColor: targetCat.color + '55' } : undefined}
           >
             {catLabel}
           </button>
 
           {pickerOpen && (
-            <div className="capture-bar__picker">
+            <div className="capture-bar__picker" role="listbox" id={listboxId} aria-label="category">
               <button
+                type="button"
+                role="option"
+                id={optionId(0)}
+                aria-selected={pickerIndex === 0}
+                tabIndex={-1}
                 className={`capture-bar__picker-item${pickerIndex === 0 ? ' capture-bar__picker-item--active' : ''}`}
                 style={{ color: 'var(--text-muted)' }}
                 onClick={() => selectCategory(null)}
@@ -176,6 +200,11 @@ export function CaptureBar({ categories, onCommit }: Props) {
               {categories.map((cat, i) => (
                 <button
                   key={cat.id}
+                  type="button"
+                  role="option"
+                  id={optionId(i + 1)}
+                  aria-selected={pickerIndex === i + 1}
+                  tabIndex={-1}
                   className={`capture-bar__picker-item${pickerIndex === i + 1 ? ' capture-bar__picker-item--active' : ''}`}
                   style={{ color: cat.color }}
                   onClick={() => selectCategory(cat.id)}
