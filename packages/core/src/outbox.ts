@@ -16,9 +16,31 @@ export interface OutboxItem {
   category_id: string | null;
   /** ISO capture time, sent to the server so a long-queued note keeps its place in the timeline. */
   created_at: string;
+  /** Consecutive failed sync attempts (reset by a manual retry). */
   attempts: number;
   last_error?: string;
+  /** Epoch ms before which an automatic flush skips this item (transient-error backoff). */
+  next_attempt_at?: number;
+  /** Dead-lettered: the server rejected it permanently. Never auto-retried; surfaced in the UI. */
+  failed?: boolean;
+  /** Local edit counter. Bumped on every edit so a sync can tell the item changed mid-flight. */
+  rev?: number;
+  // Fields a queued note can be edited into before it ever reaches the server.
+  // Optional so items written by older builds still parse.
+  color?: string | null;
+  remind_at?: string | null;
+  pending_review?: boolean;
+  pinned?: boolean;
+  archived_at?: string | null;
+  reviewed_at?: string | null;
+  review_muted?: boolean;
 }
+
+/** Note columns that can be carried in a queued insert (everything a user can edit). */
+export const OUTBOX_NOTE_FIELDS = [
+  'text', 'category_id', 'color', 'remind_at', 'pending_review',
+  'pinned', 'archived_at', 'reviewed_at', 'review_muted',
+] as const;
 
 /** The synchronous storage surface the outbox needs (a subset of Web Storage). */
 export interface SyncStorage {

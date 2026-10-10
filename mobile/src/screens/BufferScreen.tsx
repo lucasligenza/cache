@@ -120,7 +120,7 @@ function BufferCard({ note, categories, onAssign, onDelete }: BufferCardProps) {
       <TouchableOpacity activeOpacity={0.7} onPress={() => setTrayOpen(o => !o)}>
         <Text style={styles.noteText} numberOfLines={4}>{note.text}</Text>
         <Text style={styles.timestamp}>
-          {note.pending ? '[queued] · ' : ''}{relTime}
+          {note.pending ? (note.syncError ? "[won't sync] · " : '[queued] · ') : ''}{relTime}
         </Text>
       </TouchableOpacity>
 

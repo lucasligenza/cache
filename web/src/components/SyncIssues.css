@@ -1,0 +1,74 @@
+.sync-issues {
+  flex-shrink: 0;
+  max-height: 40%;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-deep);
+  font-family: var(--font);
+  font-size: 12px;
+}
+
+.sync-issues__bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  padding: 4px 14px;
+}
+
+.sync-issues__title {
+  color: var(--amber);
+  margin-right: 4px;
+}
+
+.sync-issues__btn {
+  background: none;
+  border: none;
+  color: var(--amber);
+  font-family: var(--font);
+  font-size: 12px;
+  padding: 4px 2px;
+  cursor: pointer;
+}
+
+.sync-issues__btn:hover,
+.sync-issues__btn:focus-visible {
+  text-decoration: underline;
+}
+
+.sync-issues__btn--dim {
+  color: var(--text-muted);
+}
+
+.sync-issues__btn--danger {
+  color: var(--red);
+}
+
+.sync-issues__list {
+  list-style: none;
+  padding: 0 14px 6px;
+}
+
+.sync-issues__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+  padding: 4px 0;
+  border-top: 1px dashed var(--border);
+}
+
+.sync-issues__text {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.sync-issues__reason {
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.sync-issues__actions {
+  margin-left: auto;
+  white-space: nowrap;
+}

@@ -132,6 +132,13 @@ describe('NoteCard', () => {
     expect(screen.queryByText('[queued]')).not.toBeInTheDocument();
   });
 
+  it('shows [won\'t sync] instead of [queued] when the server rejected the note', () => {
+    renderCard({ note: { ...mockNote, pending: true, syncError: 'note too long' } });
+    expect(screen.getByText("[won't sync]")).toBeInTheDocument();
+    expect(screen.getByTitle("won't retry — note too long")).toBeInTheDocument();
+    expect(screen.queryByText('[queued]')).not.toBeInTheDocument();
+  });
+
   it('review mode: the mute chip silences the note (never-nag)', () => {
     const onUpdate = vi.fn();
     renderCard({ onUpdate, reviewMode: true });
