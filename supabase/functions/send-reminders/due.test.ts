@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { selectDue, reminderPayload, type ReminderRow } from './due';
+import { selectDue, reminderPayload, dueUserIds, groupByUser, isGonePushError, type ReminderRow } from './due';
 
 function row(overrides: Partial<ReminderRow> = {}): ReminderRow {
   return {
@@ -61,5 +61,41 @@ describe('reminderPayload', () => {
     const long = 'x'.repeat(250);
     const { body } = JSON.parse(reminderPayload(row({ text: long })));
     expect(body).toHaveLength(100);
+  });
+});
+
+describe('dueUserIds', () => {
+  it('dedupes users so subscriptions are fetched in one query', () => {
+    const rows = [row({ id: 'a', user_id: 'u1' }), row({ id: 'b', user_id: 'u2' }), row({ id: 'c', user_id: 'u1' })];
+    expect(dueUserIds(rows)).toEqual(['u1', 'u2']);
+  });
+});
+
+describe('groupByUser', () => {
+  it('keeps every device of a user', () => {
+    const subs = [
+      { user_id: 'u1', endpoint: 'https://push/laptop', p256dh_key: 'p', auth_key: 'a' },
+      { user_id: 'u2', endpoint: 'https://push/other', p256dh_key: 'p', auth_key: 'a' },
+      { user_id: 'u1', endpoint: 'https://push/phone', p256dh_key: 'p', auth_key: 'a' },
+    ];
+    const byUser = groupByUser(subs);
+    expect(byUser.get('u1')?.map(s => s.endpoint)).toEqual(['https://push/laptop', 'https://push/phone']);
+    expect(byUser.get('u2')).toHaveLength(1);
+    expect(byUser.get('u3')).toBeUndefined();
+  });
+});
+
+describe('isGonePushError', () => {
+  it('treats 404 and 410 from the push service as a dead subscription', () => {
+    expect(isGonePushError({ statusCode: 404 })).toBe(true);
+    expect(isGonePushError({ statusCode: 410 })).toBe(true);
+  });
+
+  it('keeps subscriptions on transient or unknown failures', () => {
+    expect(isGonePushError({ statusCode: 429 })).toBe(false);
+    expect(isGonePushError({ statusCode: 500 })).toBe(false);
+    expect(isGonePushError(new Error('network down'))).toBe(false);
+    expect(isGonePushError(null)).toBe(false);
+    expect(isGonePushError('410')).toBe(false);
   });
 });

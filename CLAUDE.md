@@ -54,13 +54,15 @@ One Supabase project used by both apps. Same schema, same credentials.
 |---|---|
 | `notes` | `id`, `text`, `category_id`, `color`, `remind_at`, `pending_review` (manual "review later" flag), `pinned`, `archived_at`, `reviewed_at`, `review_muted` (never-nag), `reminded_at` (push dedup), `user_id` (defaults `auth.uid()`), `created_at`, `updated_at` |
 | `categories` | `id`, `name`, `color`, `user_id`, `created_at` |
-| `push_subscriptions` | web-push endpoints per user |
+| `push_subscriptions` | web-push endpoints — one row per device (`endpoint` unique), many per user; written via the `register_push_subscription` RPC |
 
 Notes with `archived_at IS NULL` are active. Notes with `category_id IS NULL` are unsorted (buffer). **RLS** is enabled on every table with per-user policies (`auth.uid() = user_id`); guests are anonymous auth users.
 
-**Migrations & backend infra are committed** under `supabase/`: `migrations/` (baseline schema + `reviewed_at` / `review_muted` / `reminded_at` / `push_subscriptions`), the `send-reminders` edge function, and `cron/send-reminders.sql` (the pg_cron scheduler — kept out of the auto-run chain because it targets the prod function URL).
+**Migrations & backend infra are committed** under `supabase/`: `migrations/` (baseline schema + `reviewed_at` / `review_muted` / `reminded_at` / `push_subscriptions` + `pg_net` + per-device push + reminder cron ops), the `send-reminders` edge function, and `cron/send-reminders.sql` (the pg_cron scheduler — kept out of the auto-run chain because it targets the prod function URL). All migration versions are 14-digit and recorded in prod's migration history; ship every schema change as a migration.
 
-**Reminders** — a pg_cron job hits the `send-reminders` edge function every 5 min. It queries **all** past-due reminders (`remind_at <= now`, not a window, so a missed run never drops one) and stamps `reminded_at` to dedupe (a newer `remind_at` re-arms it).
+**Reminders** — a pg_cron job calls the `send-reminders` edge function every 5 min via `pg_net` (`net.http_post`). `pg_net` was **not** enabled on prod until 2026-10-10, so no reminder fired before then; it's now captured in `20261010000100_enable_pg_net.sql`. The function queries **all** past-due reminders (`remind_at <= now`, not a window, so a missed run never drops one), sends to every device of each user in one batched lookup, deletes subscriptions the push service reports gone (404/410), and stamps `reminded_at` to dedupe (a newer `remind_at` re-arms it).
+- **Auth:** the cron job sends an `x-cron-secret` header read from Vault (`send_reminders_cron_secret`, generated in-DB by `20261010000300_reminder_cron_ops.sql`); the function checks it with the service-role-only `verify_reminder_cron_secret` RPC and returns 401 otherwise. The anon key only gets past the gateway's `verify_jwt`.
+- **Ops:** each authorized run writes a row to `ops.reminder_runs`. `cron-log-purge` (daily) trims `cron.job_run_details` to 7 days and `ops.reminder_runs` to 30. `cron-failure-check` (daily 08:00 UTC) runs `ops.cron_health_report()` — failed cron runs, failed function runs, or no successful run in 30 min — and, if unhealthy, POSTs to the Vault secret `ops_alert_webhook_url` (Slack/Discord-style) when set, then fails its own cron run. `select ops.cron_health_report();` returns null when healthy.
 
 ---
 

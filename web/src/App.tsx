@@ -5,7 +5,7 @@ import { useNotes } from './hooks/useNotes';
 import { useCategories } from './hooks/useCategories';
 import { useVisualViewport } from './hooks/useVisualViewport';
 import { useToast } from './components/Toast';
-import { subscribeToPush, unsubscribeFromPush, getPushStatus } from './lib/push';
+import { subscribeToPush, unsubscribeFromPush, getPushStatus, type PushStatus } from './lib/push';
 import { registerOutboxSync } from './lib/bgsync';
 import { BootSequence } from './components/BootSequence';
 import { DataLoadingScreen } from './components/DataLoadingScreen';
@@ -41,7 +41,7 @@ export default function App() {
   const [accent, setAccent] = useState<string>(() =>
     localStorage.getItem('cn_accent') || 'green'
   );
-  const [pushStatus, setPushStatus] = useState<'unsupported' | 'denied' | 'subscribed' | 'unsubscribed'>('unsubscribed');
+  const [pushStatus, setPushStatus] = useState<PushStatus>('unsubscribed');
 
   // Focus-a-note plumbing (search → open the actual note).
   const [focusNoteId, setFocusNoteId] = useState<string | null>(null);
