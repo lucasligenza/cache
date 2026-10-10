@@ -78,6 +78,7 @@ Notes with `archived_at IS NULL` are active. Notes with `category_id IS NULL` ar
 | State | React hooks — no global state library |
 | Routing | None — `activeView` state in `App.tsx` (`'buffer' | 'board' | 'search' | 'review' | 'settings' | 'archive'`) |
 | Testing | Vitest + @testing-library/react |
+| CI | GitHub Actions `.github/workflows/ci.yml` on every PR + push to `master` (Node from `.nvmrc`). Job **`web`**: root `npm ci` → core `tsc` → `npm run build -w web` → web tests → `npm audit --omit=dev --audit-level=high`. Job **`mobile`**: `mobile/` `npm ci` → `typecheck` → `test`. Branch protection on `master` requires both job names — rename a job and the rule must change too. |
 | Shared core | Consumes `@cache/core` (workspace dependency) via re-export shims |
 | Deployment | Vercel — **Root Directory = `web`**; `web/vercel.json` sets `installCommand: cd .. && npm ci` (installs the workspace root strictly from the committed lockfile), `buildCommand: npm run build`, and rewrites all routes to `index.html`. Prod domain `cache-gilt.vercel.app`. |
 
