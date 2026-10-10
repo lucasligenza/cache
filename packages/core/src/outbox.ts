@@ -106,6 +106,15 @@ export function addToOutbox(item: OutboxItem): void {
   writeOutbox(items);
 }
 
+/**
+ * Drop a user's entire queue, regardless of the active scope. Used when a guest
+ * ends their session: an anonymous user can never sign back in to sync it, so
+ * the leftover note text would otherwise sit in browser storage forever.
+ */
+export function clearOutboxFor(userId: string): void {
+  storage().removeItem(`${OUTBOX_KEY}:${userId}`);
+}
+
 export function removeFromOutbox(id: string): void {
   writeOutbox(readOutbox().filter(i => i.id !== id));
 }

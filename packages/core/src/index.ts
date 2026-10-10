@@ -6,3 +6,6 @@ export * from './exporter';
 export * from './useNotes';
 export * from './useCategories';
 export * from './useAuth';
+export * from './authErrors';
+export * from './authRedirect';
+export * from './guest';

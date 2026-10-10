@@ -25,14 +25,35 @@ import { ArchiveView } from './views/ArchiveView';
 import { ReviewView } from './views/ReviewView';
 import { buildReviewSet } from './lib/review';
 import { exportJson, exportMarkdown } from './lib/exporter';
+import { requestPersistentStorage, type PersistState } from './lib/persist';
+import { guestNudgeDue } from '@cache/core';
+import { NewPasswordScreen } from './components/NewPasswordScreen';
 import './App.css';
+
+const PUSH_CONFIGURED = !!import.meta.env.VITE_VAPID_PUBLIC_KEY;
 
 export default function App() {
   // Pin the shell to visualViewport so iOS keyboard open/close does not jump
   // or bury the capture bar. See useVisualViewport + App.css [data-keyboard].
   useVisualViewport();
   const { showToast } = useToast();
-  const { user, loading: authLoading, signIn, signUp, signInAsGuest, upgradeGuest, signOut } = useAuth();
+  const {
+    user,
+    loading: authLoading,
+    recovering,
+    redirectError,
+    redirectWasRecovery,
+    signIn,
+    signUp,
+    signInAsGuest,
+    upgradeGuest,
+    requestPasswordReset,
+    updatePassword,
+    signOut,
+  } = useAuth();
+  const isGuest = !!user?.is_anonymous;
+  const [storageState, setStorageState] = useState<PersistState | null>(null);
+  const [upgradeIntent, setUpgradeIntent] = useState(false);
   const [booted, setBooted] = useState(() => sessionStorage.getItem('cn_booted') === '1');
   const [activeView, setActiveView] = useState<ViewName>('buffer');
   const [theme, setTheme] = useState<'dark' | 'light'>(() =>
@@ -90,8 +111,14 @@ export default function App() {
   const navigate = useCallback((view: ViewName) => {
     setFocusNoteId(null);
     setBoardFocusCatId(null);
+    setUpgradeIntent(false);
     setActiveView(view);
   }, []);
+
+  const openUpgrade = useCallback(() => {
+    navigate('settings');
+    setUpgradeIntent(true);
+  }, [navigate]);
 
   const handleCommit = useCallback(
     async (text: string, categoryId?: string) => {
@@ -172,6 +199,39 @@ export default function App() {
     return result;
   }, [upgradeGuest, showToast]);
 
+  const handleSignOut = useCallback(async () => {
+    const { error } = await signOut();
+    if (error) showToast('error', `logout failed — ${error}`);
+  }, [signOut, showToast]);
+
+  const handleUpdatePassword = useCallback(async (password: string) => {
+    const result = await updatePassword(password);
+    if (!result.error) showToast('ok', 'password updated');
+    return result;
+  }, [updatePassword, showToast]);
+
+  // A guest's session token and unsynced captures live only in browser storage.
+  useEffect(() => {
+    if (!isGuest) { setStorageState(null); return; }
+    let cancelled = false;
+    requestPersistentStorage().then(state => { if (!cancelled) setStorageState(state); });
+    return () => { cancelled = true; };
+  }, [isGuest, user?.id]);
+
+  // Nudge guests toward an account as their cache grows (10, 25, 50, … notes).
+  useEffect(() => {
+    if (!isGuest || !user || notesLoading) return;
+    const key = `cn_guest_nudge:${user.id}`;
+    const due = guestNudgeDue(notes.length, Number(localStorage.getItem(key)) || 0);
+    if (due === null) return;
+    localStorage.setItem(key, String(due));
+    showToast('warn', `${notes.length} notes on a guest session — create an account so you can't lose them`, {
+      actionLabel: 'save',
+      onAction: openUpgrade,
+      duration: 10000,
+    });
+  }, [isGuest, user, notesLoading, notes.length, showToast, openUpgrade]);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('cn_theme', theme);
@@ -243,7 +303,7 @@ export default function App() {
       { id: 'open-archive', label: 'open: ~/.trash (archived notes)', run: handleOpenArchive },
       { id: 'shortcuts', label: 'show keyboard shortcuts', hint: '?', run: () => setShortcutsOpen(true) },
     ];
-    if (pushStatus === 'unsubscribed') {
+    if (PUSH_CONFIGURED && pushStatus === 'unsubscribed') {
       base.push({ id: 'enable-notif', label: 'enable notifications', run: handleEnableNotifications });
     }
     const catCmds: Command[] = categories.map(c => ({
@@ -298,8 +358,21 @@ export default function App() {
     );
   }
 
+  if (user && recovering) {
+    return <NewPasswordScreen email={user.email} onSubmit={handleUpdatePassword} onCancel={handleSignOut} />;
+  }
+
   if (!user) {
-    return <LoginScreen onSignIn={signIn} onSignUp={signUp} onGuest={signInAsGuest} />;
+    return (
+      <LoginScreen
+        onSignIn={signIn}
+        onSignUp={signUp}
+        onGuest={signInAsGuest}
+        onResetPassword={requestPasswordReset}
+        initialMode={redirectError && redirectWasRecovery ? 'reset' : 'login'}
+        initialError={redirectError}
+      />
+    );
   }
 
   if (!booted) {
@@ -377,13 +450,18 @@ export default function App() {
         )}
         {activeView === 'settings' && (
           <SettingsView
-            userEmail={user.is_anonymous ? 'guest' : (user.email ?? '')}
-            isGuest={!!user.is_anonymous}
+            userEmail={isGuest ? 'guest' : (user.email ?? '')}
+            isGuest={isGuest}
+            noteCount={notes.length}
+            pendingCount={pendingCount}
+            storageState={storageState}
+            initialUpgradeOpen={upgradeIntent}
             theme={theme}
             accent={accent}
             onThemeChange={setTheme}
             onAccentChange={setAccent}
-            onSignOut={signOut}
+            onSignOut={handleSignOut}
+            pushConfigured={PUSH_CONFIGURED}
             pushStatus={pushStatus}
             onEnableNotifications={handleEnableNotifications}
             onDisableNotifications={handleDisableNotifications}
@@ -391,7 +469,7 @@ export default function App() {
             archivedCount={archived.length}
             onExportJson={handleExportJson}
             onExportMarkdown={handleExportMarkdown}
-            onUpgradeAccount={user.is_anonymous ? handleUpgradeAccount : undefined}
+            onUpgradeAccount={isGuest ? handleUpgradeAccount : undefined}
           />
         )}
         {activeView === 'review' && (
