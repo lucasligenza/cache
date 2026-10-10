@@ -506,7 +506,11 @@ export function useNotesCore(deps: NotesDeps) {
     [notes]
   );
 
-  const pendingCount = useMemo(() => notes.filter(n => n.pending).length, [notes]);
+  // Dead-lettered notes stay on device, but they will not retry, so they are not "queued".
+  const pendingCount = useMemo(
+    () => notes.filter(n => n.pending && !n.syncError).length,
+    [notes],
+  );
 
   // Dead-lettered notes, read from the outbox so archived ones are included too.
   const syncIssues = useMemo(() => {

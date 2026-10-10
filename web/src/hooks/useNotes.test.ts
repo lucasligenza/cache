@@ -194,6 +194,7 @@ describe('useNotes', () => {
     expect(readOutbox().map(i => i.text)).toEqual(['offline thought']);
     expect(result.current.notes[0].text).toBe('offline thought');
     expect(result.current.notes[0].pending).toBe(true);
+    expect(result.current.pendingCount).toBe(1);
   });
 
   it('createNote resolves without waiting for a slow server insert', async () => {
@@ -438,6 +439,8 @@ describe('useNotes', () => {
     expect(result.current.syncIssues[0]).toMatchObject({ id: 'q1', syncError: 'note too long' });
     expect(readOutbox()[0]).toMatchObject({ failed: true, attempts: 1 });
     expect(result.current.notes.find(n => n.id === 'q1')?.syncError).toBe('note too long');
+    expect(result.current.notes.find(n => n.id === 'q1')?.pending).toBe(true);
+    expect(result.current.pendingCount).toBe(0);
     expect(onRequestError).toHaveBeenCalledWith('sync', expect.objectContaining({ code: '23514' }));
 
     await act(async () => { await result.current.flushOutbox({ force: true }); });

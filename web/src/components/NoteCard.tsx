@@ -273,7 +273,12 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
       </div>
       <div className="note-card__meta">
         <span className="note-card__time">{relTime}</span>
-        {note.pending && <span className="note-card__chip note-card__chip--queued" title="captured — syncing when online">[queued]</span>}
+        {note.pending && !note.syncError && (
+          <span className="note-card__chip note-card__chip--queued" title="captured — syncing when online">[queued]</span>
+        )}
+        {note.pending && note.syncError && (
+          <span className="note-card__chip note-card__chip--rejected" title={`won't retry — ${note.syncError}`}>[won't sync]</span>
+        )}
         {pingLabel ? (
           <button
             className={`note-card__ping-badge${!pingFuture ? ' note-card__ping-badge--overdue' : ''}`}
