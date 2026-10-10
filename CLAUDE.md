@@ -28,6 +28,7 @@ Longer-term direction lives in the roadmap plan (see **Docs**). Current focus: H
 | `review.ts` | `buildReviewSet()` triage + `countReviewedToday()` + constants |
 | `outbox.ts` | offline capture queue; **storage is injected** via `setOutboxStorage()` (web falls back to `localStorage`; native passes expo-sqlite sync, or MMKV in a future dev-client build) |
 | `exporter.ts` | pure `buildJson` / `buildMarkdown` (the browser download wrapper stays in web) |
+| `slashRoute.ts` | pure `parseSlashRoute()` for capture `/dir` routing — longest case-insensitive category name, spaces or slug (`/date ideas`, `/date-ideas`) + `categorySlug()` |
 | `useNotes.ts` | `useNotesCore(deps)` — Supabase data layer + offline-sync orchestration; inject `supabase` + `isOnline()` |
 | `useCategories.ts` | `useCategoriesCore(deps)` — categories CRUD; inject `supabase` + seed defaults + accent palette |
 | `useAuth.ts` | `useAuthCore(deps)` — Supabase auth; inject `supabase` |
@@ -163,6 +164,7 @@ web/src/
 │   ├── telemetry.ts            # provider-agnostic error reporting (VITE_ERROR_REPORT_URL; inert if unset)
 │   ├── review.ts               # → re-exports @cache/core (buildReviewSet, countReviewedToday)
 │   ├── outbox.ts               # → re-exports @cache/core (offline capture queue)
+│   ├── slashRoute.ts           # → re-exports @cache/core (parseSlashRoute for capture /dir)
 │   └── exporter.ts             # buildJson/buildMarkdown re-exported from core + web download wrapper
 ├── hooks/
 │   ├── useNotes.ts             # → wrapper: injects supabase + navigator.onLine into @cache/core useNotesCore
@@ -176,7 +178,7 @@ web/src/
 │   ├── AppHeader.tsx/.css      # Brand + live status line (counts, overdue pings, cursor)
 │   ├── BottomNav.tsx/.css      # 4 thumb tabs, amber buffer badge (pulses on increment)
 │   ├── NoteCard.tsx/.css       # Inline edit, pin, ping presets/snooze/custom, delete→archive
-│   ├── CaptureBar.tsx/.css     # Auto-focused prompt, /dir slash-routing, keyboard picker, cached ✓
+│   ├── CaptureBar.tsx/.css     # Auto-focused prompt, /dir slash-routing, keyboard picker (listbox; Tab never traps), cached ✓
 │   ├── CommandPalette.tsx/.css # Ctrl/⌘-K fuzzy command runner (role=dialog + focus trap)
 │   ├── ShortcutsOverlay.tsx/.css # ? keyboard cheatsheet (role=dialog + focus trap)
 │   ├── OnboardingOverlay.tsx/.css # one-time first-run tips (localStorage cn_onboarded)
@@ -199,6 +201,7 @@ packages/core/src/
 ├── review.ts                   # buildReviewSet, countReviewedToday, constants
 ├── outbox.ts                   # OutboxItem, read/write/add/remove/update, newId, setOutboxStorage (SyncStorage)
 ├── exporter.ts                 # buildJson, buildMarkdown (pure)
+├── slashRoute.ts               # parseSlashRoute, categorySlug (pure /dir parsing)
 ├── useNotes.ts                 # useNotesCore(deps) — data layer + offline-sync orchestration
 ├── useCategories.ts            # useCategoriesCore(deps) — categories CRUD + seed
 └── useAuth.ts                  # useAuthCore(deps) — Supabase auth
