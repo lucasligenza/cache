@@ -1,5 +1,7 @@
 import { supabase } from './supabase';
 
+export type PushStatus = 'unavailable' | 'unsupported' | 'denied' | 'subscribed' | 'unsubscribed';
+
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -11,13 +13,21 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+function vapidPublicKey(): string {
+  return (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined) ?? '';
+}
+
+function isPushSupported(): boolean {
+  return 'serviceWorker' in navigator && 'PushManager' in window;
+}
+
 export async function subscribeToPush(): Promise<{ error: string | null }> {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    return { error: 'Push notifications not supported in this browser' };
-  }
-  const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string;
+  const vapidKey = vapidPublicKey();
   if (!vapidKey) {
-    return { error: 'VITE_VAPID_PUBLIC_KEY not set' };
+    return { error: 'notifications are unavailable right now' };
+  }
+  if (!isPushSupported()) {
+    return { error: 'Push notifications not supported in this browser' };
   }
 
   const permission = await Notification.requestPermission();
@@ -38,18 +48,13 @@ export async function subscribeToPush(): Promise<{ error: string | null }> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { error: 'Not authenticated' };
 
-    // Upsert: one subscription per user (replace on conflict)
-    const { error: dbError } = await supabase
-      .from('push_subscriptions')
-      .upsert(
-        {
-          user_id: user.id,
-          endpoint,
-          p256dh_key: keys.p256dh ?? '',
-          auth_key: keys.auth ?? '',
-        },
-        { onConflict: 'user_id' }
-      );
+    // One row per device endpoint; the RPC hands the endpoint to the current
+    // user if another account subscribed on this browser before.
+    const { error: dbError } = await supabase.rpc('register_push_subscription', {
+      p_endpoint: endpoint,
+      p_p256dh_key: keys.p256dh ?? '',
+      p_auth_key: keys.auth ?? '',
+    });
 
     if (dbError) return { error: dbError.message };
     return { error: null };
@@ -58,26 +63,28 @@ export async function subscribeToPush(): Promise<{ error: string | null }> {
   }
 }
 
+/** Unsubscribes this device only; the user's other devices keep their reminders. */
 export async function unsubscribeFromPush(): Promise<{ error: string | null }> {
+  if (!isPushSupported()) return { error: null };
   try {
     const reg = await navigator.serviceWorker.ready;
     const subscription = await reg.pushManager.getSubscription();
-    if (subscription) {
-      await subscription.unsubscribe();
-    }
+    if (!subscription) return { error: null };
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { error: null };
+    const { endpoint } = subscription;
+    await subscription.unsubscribe();
 
-    await supabase.from('push_subscriptions').delete().eq('user_id', user.id);
+    const { error: dbError } = await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
+    if (dbError) return { error: dbError.message };
     return { error: null };
   } catch (err) {
     return { error: err instanceof Error ? err.message : 'Failed to unsubscribe' };
   }
 }
 
-export async function getPushStatus(): Promise<'unsupported' | 'denied' | 'subscribed' | 'unsubscribed'> {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return 'unsupported';
+export async function getPushStatus(): Promise<PushStatus> {
+  if (!vapidPublicKey()) return 'unavailable';
+  if (!isPushSupported()) return 'unsupported';
   if (Notification.permission === 'denied') return 'denied';
   const reg = await navigator.serviceWorker.ready;
   const subscription = await reg.pushManager.getSubscription();

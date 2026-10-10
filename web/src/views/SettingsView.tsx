@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import type { PushStatus } from '../lib/push';
 import './SettingsView.css';
 
 interface Props {
@@ -10,7 +11,7 @@ interface Props {
   onThemeChange: (theme: 'dark' | 'light') => void;
   onAccentChange: (accent: string) => void;
   onSignOut: () => void;
-  pushStatus: 'unsupported' | 'denied' | 'subscribed' | 'unsubscribed';
+  pushStatus: PushStatus;
   onEnableNotifications: () => void;
   onDisableNotifications: () => void;
   onOpenArchive: () => void;
@@ -146,6 +147,11 @@ export function SettingsView({ userEmail, isGuest = false, theme, accent, onThem
         {/* Notifications */}
         <section className="settings-section">
           <div className="settings-section__label">notifications</div>
+          {pushStatus === 'unavailable' && (
+            <div className="settings-row">
+              <span className="settings-row__dim">unavailable right now</span>
+            </div>
+          )}
           {pushStatus === 'unsupported' && (
             <div className="settings-row">
               <span className="settings-row__dim">not supported in this browser</span>
