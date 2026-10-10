@@ -168,3 +168,68 @@
   display: flex;
   gap: 12px;
 }
+
+.settings-row__warn {
+  color: var(--amber);
+  font-size: 12px;
+}
+
+.settings-row__value--ok {
+  color: var(--accent);
+}
+
+.settings-btn--accent {
+  color: var(--accent);
+  border-color: var(--accent-glow);
+}
+
+.settings-btn--accent:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-glow-soft);
+}
+
+.settings-btn--danger {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 50%, transparent);
+}
+
+.settings-btn--danger:hover {
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+}
+
+.settings-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.settings-upgrade__label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Guest logout guard */
+.settings-guard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent);
+  border-left: 2px solid var(--amber);
+  background: color-mix(in srgb, var(--amber) 6%, transparent);
+  border-radius: 3px;
+}
+
+.settings-guard__msg {
+  color: var(--amber);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.settings-guard__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
