@@ -1,43 +1,36 @@
-.conn-error {
+.conn-banner {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  background: var(--bg);
-  color: var(--text);
+  flex-wrap: wrap;
+  gap: 0 2px;
+  padding: 4px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-deep);
+  color: var(--amber);
   font-family: var(--font);
-  padding: 24px;
-}
-
-.conn-error__box {
-  max-width: 360px;
-  text-align: left;
-}
-
-.conn-error__title {
-  color: var(--red);
-  font-size: 15px;
-  margin-bottom: 8px;
-}
-
-.conn-error__msg {
-  color: var(--text-muted);
   font-size: 12px;
-  margin-bottom: 16px;
 }
 
-.conn-error__retry {
+.conn-banner--syncing {
+  color: var(--text-muted);
+}
+
+.conn-banner__dim {
+  color: var(--text-muted);
+}
+
+.conn-banner__retry {
   background: none;
-  border: 1px solid var(--accent);
-  color: var(--accent);
+  border: none;
+  color: var(--amber);
   font-family: var(--font);
-  font-size: 13px;
-  padding: 6px 14px;
-  border-radius: 3px;
+  font-size: 12px;
+  padding: 4px 2px;
   cursor: pointer;
-  transition: background 0.12s;
 }
 
-.conn-error__retry:hover {
-  background: var(--accent-glow-soft);
+.conn-banner__retry:hover,
+.conn-banner__retry:focus-visible {
+  text-decoration: underline;
 }

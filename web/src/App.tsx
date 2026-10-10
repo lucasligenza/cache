@@ -17,6 +17,7 @@ import { CommandPalette, type Command } from './components/CommandPalette';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay';
 import { OnboardingOverlay } from './components/OnboardingOverlay';
 import { ConnectionError } from './components/ConnectionError';
+import { SyncIssues } from './components/SyncIssues';
 import { BufferView } from './views/BufferView';
 import { BoardView } from './views/BoardView';
 import { SearchView } from './views/SearchView';
@@ -26,6 +27,10 @@ import { ReviewView } from './views/ReviewView';
 import { buildReviewSet } from './lib/review';
 import { exportJson, exportMarkdown } from './lib/exporter';
 import './App.css';
+
+// How long the loading screen may hold the shell back. After this (or at once
+// when offline) the shell renders with a banner so capture is never blocked.
+const LOAD_GRACE_MS = 1500;
 
 export default function App() {
   // Pin the shell to visualViewport so iOS keyboard open/close does not jump
@@ -42,6 +47,8 @@ export default function App() {
     localStorage.getItem('cn_accent') || 'green'
   );
   const [pushStatus, setPushStatus] = useState<'unsupported' | 'denied' | 'subscribed' | 'unsubscribed'>('unsubscribed');
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+  const [loadGraceOver, setLoadGraceOver] = useState(false);
 
   // Focus-a-note plumbing (search → open the actual note).
   const [focusNoteId, setFocusNoteId] = useState<string | null>(null);
@@ -64,11 +71,13 @@ export default function App() {
     loading: notesLoading,
     error: notesError,
     pendingCount,
+    syncIssues,
     createNote,
     updateNote,
     archiveNote,
     unarchiveNote,
     deleteNote,
+    retrySync,
     getNotesByCategory,
     fetchArchived,
     flushOutbox,
@@ -161,7 +170,26 @@ export default function App() {
     setShowOnboarding(false);
   }, []);
 
-  const handleRetry = useCallback(() => { refetchNotes(); refetchCategories(); }, [refetchNotes, refetchCategories]);
+  const handleRetry = useCallback(() => {
+    refetchNotes();
+    refetchCategories();
+    void flushOutbox({ force: true });
+  }, [refetchNotes, refetchCategories, flushOutbox]);
+
+  const handleEditUnsynced = useCallback((note: Note) => {
+    if (note.archived_at) handleOpenArchive();
+    else handleOpenNote(note);
+  }, [handleOpenArchive, handleOpenNote]);
+
+  const handleExportUnsynced = useCallback(
+    () => exportJson(syncIssues, categories, new Date().toISOString()),
+    [syncIssues, categories]
+  );
+
+  const handleDiscardUnsynced = useCallback(
+    (id: string) => { deleteNote(id).catch(() => showToast('error', 'failed to discard note')); },
+    [deleteNote, showToast]
+  );
 
   const handleExportJson = useCallback(() => exportJson(notes, categories, new Date().toISOString()), [notes, categories]);
   const handleExportMarkdown = useCallback(() => exportMarkdown(notes, categories, new Date().toISOString()), [notes, categories]);
@@ -196,15 +224,24 @@ export default function App() {
   }, [activeView, fetchArchived]);
 
   useEffect(() => {
-    const onOffline = () => { showToast('warn', 'connection lost — you are offline'); void registerOutboxSync(); };
-    const onOnline = () => { showToast('ok', 'back online'); flushOutbox(); };
+    // The outbox flush + refetch on reconnect is handled inside the data hooks.
+    const onOffline = () => { setIsOnline(false); showToast('warn', 'connection lost — you are offline'); void registerOutboxSync(); };
+    const onOnline = () => { setIsOnline(true); showToast('ok', 'back online'); };
     window.addEventListener('offline', onOffline);
     window.addEventListener('online', onOnline);
     return () => {
       window.removeEventListener('offline', onOffline);
       window.removeEventListener('online', onOnline);
     };
-  }, [showToast, flushOutbox]);
+  }, [showToast]);
+
+  const dataLoading = notesLoading || catsLoading;
+  useEffect(() => {
+    if (!user || !dataLoading) return;
+    if (!navigator.onLine) { setLoadGraceOver(true); return; }
+    const t = setTimeout(() => setLoadGraceOver(true), LOAD_GRACE_MS);
+    return () => clearTimeout(t);
+  }, [user, dataLoading]);
 
   // On a Background Sync wake-up the service worker postMessages the page
   // (it can't reach the outbox/session itself — see sw.ts / lib/bgsync.ts);
@@ -212,7 +249,7 @@ export default function App() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
     const onMessage = (e: MessageEvent) => {
-      if ((e.data as { type?: string } | null)?.type === 'cn-flush') flushOutbox();
+      if ((e.data as { type?: string } | null)?.type === 'cn-flush') flushOutbox({ force: true });
     };
     navigator.serviceWorker.addEventListener('message', onMessage);
     return () => navigator.serviceWorker.removeEventListener('message', onMessage);
@@ -306,13 +343,11 @@ export default function App() {
     return <BootSequence onDone={() => { sessionStorage.setItem('cn_booted', '1'); setBooted(true); }} />;
   }
 
-  if (notesLoading || catsLoading) {
+  if (dataLoading && !loadGraceOver) {
     return <DataLoadingScreen />;
   }
 
-  if ((notesError && notes.length === 0) || (catsError && categories.length === 0)) {
-    return <ConnectionError onRetry={handleRetry} />;
-  }
+  const showConnBanner = notesError || catsError || !isOnline;
 
   return (
     <div className="app-shell">
@@ -324,6 +359,16 @@ export default function App() {
         isGuest={!!user.is_anonymous}
         onOpenReview={() => navigate('review')}
         onOpenSettings={() => navigate('settings')}
+      />
+      {(showConnBanner || dataLoading) && (
+        <ConnectionError offline={!isOnline} syncing={!showConnBanner} onRetry={handleRetry} />
+      )}
+      <SyncIssues
+        notes={syncIssues}
+        onRetry={id => { void retrySync(id); }}
+        onEdit={handleEditUnsynced}
+        onExport={handleExportUnsynced}
+        onDiscard={handleDiscardUnsynced}
       />
       <div className="app-shell__content">
         {activeView === 'buffer' && (
