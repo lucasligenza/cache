@@ -45,4 +45,71 @@ describe('LoginScreen', () => {
       expect(screen.getByText(/Email already registered/i)).toBeInTheDocument();
     });
   });
+
+  it('announces errors to screen readers', async () => {
+    const onSignIn = vi.fn().mockResolvedValue({ error: 'wrong email or password' });
+    render(<LoginScreen onSignIn={onSignIn} onSignUp={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('email'), { target: { value: 'a@b.com' } });
+    fireEvent.change(screen.getByLabelText('password'), { target: { value: 'nope' } });
+    fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('wrong email or password');
+  });
+
+  it('shows the 8+ chars hint only in register mode and ticks it when met', () => {
+    render(<LoginScreen onSignIn={vi.fn()} onSignUp={vi.fn()} />);
+    expect(screen.queryByText(/8\+ chars/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('[register]'));
+    const hint = screen.getByText('8+ chars');
+    expect(screen.getByLabelText('password')).toHaveAttribute('aria-describedby', hint.id);
+    fireEvent.change(screen.getByLabelText('password'), { target: { value: 'longenough' } });
+    expect(screen.getByText('8+ chars ✓')).toBeInTheDocument();
+  });
+
+  it('passes the guest-mode error through verbatim', async () => {
+    const onGuest = vi.fn().mockResolvedValue({ error: 'guest mode unavailable — sign up instead' });
+    render(<LoginScreen onSignIn={vi.fn()} onSignUp={vi.fn()} onGuest={onGuest} />);
+    fireEvent.click(screen.getByRole('button', { name: /continue as guest/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('guest mode unavailable — sign up instead');
+  });
+
+  it('hides [forgot password] when reset is not wired', () => {
+    render(<LoginScreen onSignIn={vi.fn()} onSignUp={vi.fn()} />);
+    expect(screen.queryByText('[forgot password]')).not.toBeInTheDocument();
+  });
+
+  it('sends a reset link from the forgot-password form', async () => {
+    const onResetPassword = vi.fn().mockResolvedValue({
+      error: null,
+      successMessage: 'if a@b.com has an account, a reset link is on its way — check your inbox',
+    });
+    render(<LoginScreen onSignIn={vi.fn()} onSignUp={vi.fn()} onGuest={vi.fn()} onResetPassword={onResetPassword} />);
+
+    fireEvent.click(screen.getByText('[forgot password]'));
+    expect(screen.getByText('~/cache $ auth --reset')).toBeInTheDocument();
+    expect(screen.queryByLabelText('password')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /continue as guest/i })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('email'), { target: { value: 'a@b.com' } });
+    fireEvent.click(screen.getByRole('button', { name: /send reset link/i }));
+
+    expect(onResetPassword).toHaveBeenCalledWith('a@b.com');
+    expect(await screen.findByRole('status')).toHaveTextContent(/reset link is on its way/);
+
+    fireEvent.click(screen.getByText('[back to login]'));
+    expect(screen.getByText('sign in to your cache')).toBeInTheDocument();
+  });
+
+  it('opens in reset mode with an expired-link error from the redirect', () => {
+    render(
+      <LoginScreen
+        onSignIn={vi.fn()}
+        onSignUp={vi.fn()}
+        onResetPassword={vi.fn()}
+        initialMode="reset"
+        initialError="that link has expired — request a new one"
+      />
+    );
+    expect(screen.getByText('~/cache $ auth --reset')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('that link has expired');
+  });
 });
