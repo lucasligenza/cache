@@ -1,14 +1,18 @@
-import { useState, useRef, useEffect } from 'react';
-import { formatDistanceToNow, differenceInDays, isFuture } from 'date-fns';
+import { useState, useRef, useEffect, useLayoutEffect, useId } from 'react';
+import { format, differenceInDays, isFuture } from 'date-fns';
 import type { Note, Category } from '../types';
+import { CategoryPicker } from './CategoryPicker';
+import { shortTime } from '../lib/shortTime';
 import './NoteCard.css';
 
 interface Props {
   note: Note;
   categories: Category[];
-  onAssign: (noteId: string, categoryId: string) => void;
+  /** `null` un-files the note back to the buffer. */
+  onAssign: (noteId: string, categoryId: string | null) => void;
   onDelete: (noteId: string) => void;
   onUpdate?: (noteId: string, updates: Partial<Note>) => void;
+  /** Promote `mv →` to a primary action (buffer triage). Otherwise it lives with the secondary actions. */
   showCategories?: boolean;
   highlighted?: boolean;
   reviewMode?: boolean;
@@ -31,26 +35,43 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pingOpen, setPingOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [clamped, setClamped] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
+  const primaryMvRef = useRef<HTMLButtonElement>(null);
+  const secondaryMvRef = useRef<HTMLButtonElement>(null);
+  const mvAnchorRef = useRef<HTMLButtonElement | null>(null);
   const cancelledRef = useRef<boolean>(false);
+  const secondaryId = useId();
 
   const isStale = differenceInDays(new Date(), new Date(note.created_at)) >= 3;
-  const relTime = formatDistanceToNow(new Date(note.created_at), { addSuffix: true });
+  const relTime = shortTime(note.created_at);
+  const absTime = (iso: string) => format(new Date(iso), 'EEE d MMM yyyy, HH:mm');
 
   const pingDate = note.remind_at ? new Date(note.remind_at) : null;
   const pingFuture = pingDate ? isFuture(pingDate) : false;
   const pingLabel = pingDate
     ? pingFuture
-      ? `ping ${formatDistanceToNow(pingDate, { addSuffix: true })}`
+      ? `ping ${shortTime(note.remind_at!)}`
       : `ping overdue`
     : null;
   const isOverdue = !!pingLabel && !pingFuture;
 
+  const isFiled = note.category_id !== null;
+  const canMove = categories.length > 0 || isFiled;
+  const mvIsPrimary = canMove && showCategories && !reviewMode;
+
   useEffect(() => {
-    if (editing && textareaRef.current) {
-      textareaRef.current.focus();
-      const len = textareaRef.current.value.length;
-      textareaRef.current.setSelectionRange(len, len);
+    const ta = textareaRef.current;
+    if (editing && ta) {
+      ta.focus();
+      const len = ta.value.length;
+      ta.setSelectionRange(len, len);
+      ta.style.height = 'auto';
+      ta.style.height = `${ta.scrollHeight}px`;
     }
   }, [editing]);
 
@@ -58,17 +79,43 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
     if (!editing) setEditText(note.text);
   }, [note.text, editing]);
 
+  // Long notes are clamped so the list stays scannable; only offer "more" when
+  // the clamp actually hides something at the current width.
+  useLayoutEffect(() => {
+    const el = textRef.current;
+    if (!el || expanded) return;
+    const measure = () => setClamped(el.scrollHeight > el.clientHeight + 1);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [note.text, expanded, editing, confirmDelete]);
+
   // Filing to a folder gets its own motion (glow in the category color, then
   // shrink + fly toward the folder) so it reads differently from delete.
-  const handleAssign = (cat: Category) => {
-    setFilingColor(cat.color);
+  const handleAssign = (cat: Category | null) => {
+    setPickerOpen(false);
+    setFilingColor(cat ? cat.color : 'var(--text-muted)');
     setFiling(true);
-    setTimeout(() => onAssign(note.id, cat.id), 340);
+    setTimeout(() => onAssign(note.id, cat ? cat.id : null), 340);
+  };
+
+  const openPicker = (anchor: HTMLButtonElement | null) => {
+    mvAnchorRef.current = anchor;
+    setPickerOpen(true);
   };
 
   const triggerDelete = () => {
     setExiting(true);
     setTimeout(() => onDelete(note.id), 280);
+  };
+
+  const startEdit = () => {
+    setEditText(note.text);
+    setPingOpen(false);
+    setMoreOpen(false);
+    setEditing(true);
   };
 
   const saveEdit = () => {
@@ -85,8 +132,10 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
     setEditing(false);
   };
 
-  const handleBlurSave = () => {
+  const handleBlurSave = (e: React.FocusEvent<HTMLTextAreaElement>) => {
     if (cancelledRef.current) { cancelledRef.current = false; return; }
+    // Focus moving to [save]/[cancel] (Android focuses tapped buttons) — let their click decide.
+    if (e.relatedTarget instanceof HTMLElement && e.relatedTarget.dataset.editAction) return;
     saveEdit();
   };
 
@@ -95,18 +144,35 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
     if (e.key === 'Escape') cancelEdit();
   };
 
-  const setPingAt = (iso: string | null) => {
-    onUpdate(note.id, { remind_at: iso });
+  const handleEditChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setEditText(e.target.value);
+    e.target.style.height = 'auto';
+    e.target.style.height = `${e.target.scrollHeight}px`;
   };
-  const setPing = (ms: number) => setPingAt(new Date(Date.now() + ms).toISOString());
-  const clearPing = () => { setPingAt(null); setCustomOpen(false); };
+
+  // In review, scheduling a ping is a snooze: acknowledge the note now so it
+  // leaves today's set, and let the ping bring it back as overdue later.
+  const setPingAt = (iso: string | null) => {
+    if (reviewMode && iso) {
+      onUpdate(note.id, { remind_at: iso, reviewed_at: new Date().toISOString(), pending_review: false });
+    } else {
+      onUpdate(note.id, { remind_at: iso });
+    }
+  };
+  const setPing = (ms: number) => {
+    setPingAt(new Date(Date.now() + ms).toISOString());
+    setPingOpen(false);
+    setCustomOpen(false);
+  };
+  const clearPing = () => { setPingAt(null); setCustomOpen(false); setPingOpen(false); };
+  const togglePingPanel = () => { setPingOpen(o => !o); setCustomOpen(false); };
 
   const togglePin = () => onUpdate(note.id, { pinned: !note.pinned });
   const toggleFlag = () => onUpdate(note.id, { pending_review: !note.pending_review });
-  // "never nag": permanently exclude from passive review buckets until un-muted.
+  // "never nag": permanently exclude from passive review buckets until re-enabled.
   const toggleMute = () => onUpdate(note.id, { review_muted: !note.review_muted });
 
-  // "keep/done": acknowledge a note in the review flow so it stops nagging.
+  // "seen/done": acknowledge a note in the review flow so it stops nagging.
   const markReviewed = () => {
     const updates: Partial<Note> = { reviewed_at: new Date().toISOString(), pending_review: false };
     if (isOverdue) updates.remind_at = null; // resolving an overdue ping
@@ -123,75 +189,21 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
     filing ? 'note-card--filing' : '',
     editing ? 'note-card--editing' : '',
     confirmDelete ? 'note-card--confirm' : '',
+    moreOpen ? 'note-card--more-open' : '',
   ].filter(Boolean).join(' ');
 
   const cardStyle = filing && filingColor
     ? ({ ['--filing-color']: filingColor } as React.CSSProperties)
     : undefined;
 
-  const pingRow = (
-    <div className="note-card__ping-row">
-      <span className="note-card__ping-label">ping:</span>
-      {PING_PRESETS.map(({ label, ms }) => (
-        <button
-          key={label}
-          className="note-card__chip note-card__chip--ping"
-          onMouseDown={e => e.preventDefault()}
-          onClick={() => setPing(ms)}
-        >
-          {label}
-        </button>
-      ))}
-      <button
-        className="note-card__chip note-card__chip--ping"
-        onMouseDown={e => e.preventDefault()}
-        onClick={() => setCustomOpen(o => !o)}
-      >
-        custom
-      </button>
-      {customOpen && (
-        <input
-          type="datetime-local"
-          className="note-card__ping-input"
-          onMouseDown={e => e.stopPropagation()}
-          onChange={e => { if (e.target.value) setPingAt(new Date(e.target.value).toISOString()); }}
-        />
-      )}
-      {note.remind_at && (
-        <button
-          className="note-card__chip note-card__chip--clear"
-          onMouseDown={e => e.preventDefault()}
-          onClick={clearPing}
-        >
-          ×clear
-        </button>
-      )}
-      {pingLabel && (
-        <span className={`note-card__ping-set${!pingFuture ? ' note-card__ping-set--overdue' : ''}`}>
-          {pingLabel}
-        </span>
-      )}
-    </div>
-  );
-
-  const pinChip = (
-    <button
-      className={`note-card__chip note-card__chip--pin${note.pinned ? ' note-card__chip--pinned' : ''}`}
-      onClick={togglePin}
-      title={note.pinned ? 'unpin note' : 'pin to top'}
-    >
-      {note.pinned ? '★ unpin' : 'pin'}
-    </button>
-  );
-
-  const flagChip = (
-    <button
-      className={`note-card__chip note-card__chip--flag${note.pending_review ? ' note-card__chip--flagged' : ''}`}
-      onClick={toggleFlag}
-      title={note.pending_review ? 'unflag' : 'flag for review'}
-    >
-      {note.pending_review ? '⚑ flagged' : '⚑'}
-    </button>
+  const picker = pickerOpen && (
+    <CategoryPicker
+      categories={categories}
+      anchorRef={mvAnchorRef}
+      includeBuffer={isFiled}
+      onSelect={handleAssign}
+      onClose={() => setPickerOpen(false)}
+    />
   );
 
   if (editing) {
@@ -200,35 +212,35 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
         <textarea
           ref={textareaRef}
           className="note-card__edit-area"
+          aria-label="edit note"
           value={editText}
-          onChange={e => setEditText(e.target.value)}
+          onChange={handleEditChange}
           onKeyDown={handleEditKeyDown}
           onBlur={handleBlurSave}
-          rows={2}
+          rows={1}
         />
         <div className="note-card__meta">
-          {categories.map(cat => (
-            <button
-              key={cat.id}
-              className="note-card__chip"
-              style={{ color: cat.color, borderColor: cat.color + '44' }}
-              onMouseDown={e => e.preventDefault()}
-              onClick={() => handleAssign(cat)}
-            >
-              /{cat.name.toLowerCase()}
-            </button>
-          ))}
+          <span className="note-card__edit-hint">↵ save · esc cancel</span>
+          <span className="note-card__spacer" />
           <button
-            className="note-card__chip"
-            style={{ color: '#FF4444', borderColor: '#FF444433', marginLeft: 'auto' }}
+            type="button"
+            className="note-card__chip note-card__chip--quiet"
+            data-edit-action="cancel"
             onMouseDown={e => e.preventDefault()}
-            onClick={() => setConfirmDelete(true)}
+            onClick={cancelEdit}
           >
-            rm
+            cancel
           </button>
-          <span className="note-card__edit-hint">enter ↵ save · esc cancel</span>
+          <button
+            type="button"
+            className="note-card__chip note-card__chip--primary"
+            data-edit-action="save"
+            onMouseDown={e => e.preventDefault()}
+            onClick={saveEdit}
+          >
+            save
+          </button>
         </div>
-        {pingRow}
       </div>
     );
   }
@@ -236,108 +248,243 @@ export function NoteCard({ note, categories, onAssign, onDelete, onUpdate = () =
   if (confirmDelete) {
     return (
       <div className={cardClasses} style={cardStyle}>
-        <div className="note-card__text note-card__text--dim">{note.text}</div>
+        <div className="note-card__text note-card__text--dim note-card__text--clamp">{note.text}</div>
         <div className="note-card__meta">
-          <span className="note-card__confirm-label">rm note?</span>
+          <span className="note-card__confirm-label">move to trash?</span>
+          <span className="note-card__spacer" />
           <button
-            className="note-card__chip note-card__chip--danger"
-            onClick={triggerDelete}
-            style={{ marginLeft: 'auto' }}
-          >
-            rm
-          </button>
-          <button
-            className="note-card__chip"
-            style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}
+            type="button"
+            className="note-card__chip note-card__chip--quiet"
             onClick={() => setConfirmDelete(false)}
           >
             cancel
+          </button>
+          <button
+            type="button"
+            className="note-card__chip note-card__chip--danger"
+            onClick={triggerDelete}
+          >
+            rm
           </button>
         </div>
       </div>
     );
   }
 
+  const pingPanel = (
+    <div className="note-card__ping-row" role="group" aria-label={reviewMode ? 'snooze until' : 'ping me'}>
+      <span className="note-card__ping-label">{reviewMode ? 'snooze:' : 'ping:'}</span>
+      {PING_PRESETS.map(({ label, ms }) => (
+        <button
+          key={label}
+          type="button"
+          className="note-card__chip note-card__chip--ping"
+          onClick={() => setPing(ms)}
+        >
+          {label}
+        </button>
+      ))}
+      <button
+        type="button"
+        className="note-card__chip note-card__chip--ping"
+        aria-expanded={customOpen}
+        onClick={() => setCustomOpen(o => !o)}
+      >
+        custom
+      </button>
+      {note.remind_at && (
+        <button type="button" className="note-card__chip note-card__chip--quiet" onClick={clearPing}>
+          ×clear
+        </button>
+      )}
+      {customOpen && (
+        <input
+          type="datetime-local"
+          className="note-card__ping-input"
+          aria-label="custom ping time"
+          onChange={e => { if (e.target.value) setPingAt(new Date(e.target.value).toISOString()); }}
+        />
+      )}
+    </div>
+  );
+
   return (
     <div className={cardClasses} style={cardStyle}>
       <div
-        className="note-card__text"
+        ref={textRef}
+        className={`note-card__text${expanded ? '' : ' note-card__text--clamp'}`}
         role="button"
         tabIndex={0}
-        onClick={() => { setEditText(note.text); setEditing(true); }}
+        aria-label={`edit note: ${note.text}`}
+        onClick={startEdit}
         onKeyDown={e => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditText(note.text); setEditing(true); }
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(); }
         }}
       >
         {note.text}
       </div>
+
       <div className="note-card__meta">
-        <span className="note-card__time">{relTime}</span>
-        {note.pending && <span className="note-card__chip note-card__chip--queued" title="captured — syncing when online">[queued]</span>}
-        {pingLabel ? (
+        <time className="note-card__time" dateTime={note.created_at} title={absTime(note.created_at)}>{relTime}</time>
+        {(clamped || expanded) && (
           <button
-            className={`note-card__ping-badge${!pingFuture ? ' note-card__ping-badge--overdue' : ''}`}
-            onClick={() => setPingOpen(o => !o)}
-            title="reschedule ping"
+            type="button"
+            className="note-card__badge note-card__badge--expand"
+            aria-expanded={expanded}
+            aria-label={expanded ? 'show less' : 'show full note'}
+            title={expanded ? 'show less' : 'show full note'}
+            onClick={() => setExpanded(x => !x)}
           >
-            {pingLabel}{!pingFuture ? ' · snooze' : ''}
-          </button>
-        ) : (
-          <button
-            className="note-card__chip note-card__chip--ping"
-            onClick={() => setPingOpen(o => !o)}
-          >
-            ping
+            {expanded ? '▴' : '▾'}
           </button>
         )}
-        {reviewMode && (
+
+        {note.pending && (
+          <span className="note-card__badge note-card__badge--queued" title="captured — syncing when online">[queued]</span>
+        )}
+        {pingLabel && (
           <button
-            className="note-card__chip note-card__chip--review"
-            onClick={markReviewed}
-            title="mark reviewed"
+            type="button"
+            className={`note-card__badge note-card__badge--ping${isOverdue ? ' note-card__badge--overdue' : ''}`}
+            aria-expanded={pingOpen}
+            onClick={togglePingPanel}
+            title={`${isOverdue ? 'overdue since' : 'pings'} ${absTime(note.remind_at!)} — ${isOverdue ? 'snooze or clear' : 'reschedule'}`}
           >
-            {isOverdue ? 'done' : 'keep'}
+            {isOverdue ? '⚠ overdue' : pingLabel}
           </button>
         )}
-        {reviewMode && (
+        {note.pending_review && (
           <button
-            className="note-card__chip note-card__chip--mute"
-            onClick={toggleMute}
-            title="never nag — stop surfacing this in review"
+            type="button"
+            className="note-card__badge note-card__badge--flagged"
+            onClick={toggleFlag}
+            aria-label="flagged — unflag"
+            title="unflag"
           >
-            mute
+            ⚑ flagged
+          </button>
+        )}
+        {note.pinned && (
+          <button
+            type="button"
+            className="note-card__badge note-card__badge--pinned"
+            onClick={togglePin}
+            aria-label="pinned — unpin"
+            title="unpin"
+          >
+            ★
           </button>
         )}
         {note.review_muted && (
           <button
-            className="note-card__chip note-card__chip--muted"
+            type="button"
+            className="note-card__badge note-card__badge--muted"
             onClick={toggleMute}
-            title="un-mute — allow this to surface in review again"
+            aria-label="not resurfacing — allow resurfacing in review"
+            title="allow this to resurface in review again"
           >
-            muted
+            ⊘ no resurface
           </button>
         )}
-        {showCategories && categories.map(cat => (
+
+        <span className="note-card__spacer" />
+
+        <div className="note-card__secondary" id={secondaryId}>
+          {!pingLabel && !reviewMode && (
+            <button type="button" className="note-card__chip note-card__chip--ping" aria-expanded={pingOpen} onClick={togglePingPanel}>
+              ping
+            </button>
+          )}
+          {canMove && !mvIsPrimary && (
+            <button
+              ref={secondaryMvRef}
+              type="button"
+              className="note-card__chip note-card__chip--mv"
+              aria-haspopup="listbox"
+              aria-expanded={pickerOpen}
+              onClick={() => openPicker(secondaryMvRef.current)}
+            >
+              mv →
+            </button>
+          )}
+          {!note.pending_review && (
+            <button type="button" className="note-card__chip note-card__chip--quiet" onClick={toggleFlag} title="flag for review">
+              ⚑ flag
+            </button>
+          )}
+          {!note.pinned && (
+            <button type="button" className="note-card__chip note-card__chip--quiet" onClick={togglePin} title="pin to top">
+              ★ pin
+            </button>
+          )}
+          {reviewMode && !note.review_muted && (
+            <button
+              type="button"
+              className="note-card__chip note-card__chip--quiet"
+              onClick={toggleMute}
+              title="never nag — stop surfacing this in review"
+            >
+              stop resurfacing
+            </button>
+          )}
           <button
-            key={cat.id}
-            className="note-card__chip"
-            style={{ color: cat.color, borderColor: cat.color + '44' }}
-            onClick={() => handleAssign(cat)}
+            type="button"
+            className="note-card__chip note-card__chip--rm"
+            onClick={() => setConfirmDelete(true)}
+            title="move to trash"
           >
-            /{cat.name.toLowerCase()}
+            rm
           </button>
-        ))}
-        {flagChip}
-        {pinChip}
-        <button
-          className="note-card__chip"
-          style={{ color: '#FF4444', borderColor: '#FF444433', marginLeft: 'auto' }}
-          onClick={() => setConfirmDelete(true)}
-        >
-          rm
-        </button>
+        </div>
+
+        <div className="note-card__actions">
+          {reviewMode && (
+            <button
+              type="button"
+              className="note-card__chip note-card__chip--quiet note-card__chip--snooze"
+              aria-expanded={pingOpen}
+              onClick={togglePingPanel}
+            >
+              snooze
+            </button>
+          )}
+          {reviewMode && (
+            <button
+              type="button"
+              className="note-card__chip note-card__chip--primary"
+              onClick={markReviewed}
+              title={isOverdue ? 'done — clear the ping' : 'seen — stop showing this today'}
+            >
+              {isOverdue ? '✓ done' : '✓ seen'}
+            </button>
+          )}
+          {mvIsPrimary && (
+            <button
+              ref={primaryMvRef}
+              type="button"
+              className="note-card__chip note-card__chip--mv"
+              aria-haspopup="listbox"
+              aria-expanded={pickerOpen}
+              onClick={() => openPicker(primaryMvRef.current)}
+            >
+              mv →
+            </button>
+          )}
+          <button
+            type="button"
+            className="note-card__more"
+            aria-label="more actions"
+            aria-expanded={moreOpen}
+            aria-controls={secondaryId}
+            onClick={() => setMoreOpen(o => !o)}
+          >
+            ⋯
+          </button>
+        </div>
       </div>
-      {pingOpen && pingRow}
+
+      {pingOpen && pingPanel}
+      {picker}
     </div>
   );
 }

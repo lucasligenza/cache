@@ -175,7 +175,8 @@ web/src/
 │   ├── LoginScreen.tsx/.css    # Auth gate (sign in / sign up)
 │   ├── AppHeader.tsx/.css      # Brand + live status line (counts, overdue pings, cursor)
 │   ├── BottomNav.tsx/.css      # 4 thumb tabs, amber buffer badge (pulses on increment)
-│   ├── NoteCard.tsx/.css       # Inline edit, pin, ping presets/snooze/custom, delete→archive
+│   ├── NoteCard.tsx/.css       # Primary actions + status badges; secondary (ping/flag/pin/rm) on hover or behind ⋯
+│   ├── CategoryPicker.tsx/.css # `mv →` directory picker (+ `→ buffer` for filed notes) — popover on desktop, bottom sheet on touch
 │   ├── CaptureBar.tsx/.css     # Auto-focused prompt, /dir slash-routing, keyboard picker, cached ✓
 │   ├── CommandPalette.tsx/.css # Ctrl/⌘-K fuzzy command runner (role=dialog + focus trap)
 │   ├── ShortcutsOverlay.tsx/.css # ? keyboard cheatsheet (role=dialog + focus trap)
@@ -187,7 +188,7 @@ web/src/
     ├── BufferView.tsx/.css     # Unsorted notes list (+ search focus/scroll)
     ├── BoardView.tsx/.css      # Category grid → drill-down, config panel with color picker
     ├── SearchView.tsx/.css     # Live search; results open + highlight target note
-    ├── ReviewView.tsx/.css     # Daily review triage — buckets + keep/done (reviewMode NoteCards)
+    ├── ReviewView.tsx/.css     # Daily review triage — buckets + ✓ seen/done + snooze (reviewMode NoteCards)
     ├── SettingsView.tsx/.css   # Account, theme, notifications, accent, ~/.trash link
     └── ArchiveView.tsx/.css    # $ ls ~/.trash — restore / permanently delete
 ```
@@ -237,11 +238,12 @@ CSS custom properties live in `index.css`: `--bg`, `--surface`, `--surface-deep`
 
 ### Interaction Features
 
-- **Review ritual** — the `review` view (`@cache/core` `buildReviewSet`, via `lib/review.ts`) assembles a bounded daily triage from four buckets: **overdue** pings, **flagged** (`pending_review`), **stale** unsorted (>3d), and **resurfaced** (untouched >21d, cap 3). Cards render as `reviewMode` `NoteCard`s; each has a **keep/done** chip that stamps `reviewed_at` (and clears an overdue ping) so it stops nagging — plus sort / snooze / mute / archive. `buildReviewSet` returns `count` (**all** buckets incl. resurfaced — the honest nav/header badge, never a silent 0) and `actionable` (overdue+flagged+stale, for header wording). Empty state: `$ inbox zero` + "cleared N today". The `⚑` flag toggle on any `NoteCard` feeds the flagged bucket.
-- **Never-nag** — a `mute` chip in review sets `notes.review_muted`, permanently excluding a note from the passive buckets (stale, resurfaced); explicit reminders/flags are unaffected. A muted note shows a `muted` chip elsewhere to un-mute.
+- **Review ritual** — the `review` view (`@cache/core` `buildReviewSet`, via `lib/review.ts`) assembles a bounded daily triage from four buckets: **overdue** pings, **flagged** (`pending_review`), **stale** unsorted (>3d), and **resurfaced** (untouched >21d, cap 3). Cards render as `reviewMode` `NoteCard`s; each has a primary **✓ seen** (or **✓ done** when overdue) that stamps `reviewed_at` (and clears an overdue ping) so it stops nagging, plus **snooze** (presets/custom: sets `remind_at` *and* stamps `reviewed_at` + clears the flag, so the note leaves today's set and returns as overdue). mv / flag / pin / stop resurfacing / rm are secondary. `buildReviewSet` returns `count` (**all** buckets incl. resurfaced — the honest nav/header badge, never a silent 0) and `actionable` (overdue+flagged+stale, for header wording). Empty state: `$ inbox zero` + "cleared N today". The `⚑` flag toggle on any `NoteCard` feeds the flagged bucket.
+- **Never-nag** — a `stop resurfacing` action in review sets `notes.review_muted`, permanently excluding a note from the passive buckets (stale, resurfaced); explicit reminders/flags are unaffected. A muted note shows a `⊘ no resurface` badge elsewhere that re-enables it.
 - **Offline-safe capture** — capture is durable-first: `CaptureBar` commits are `async` and the input clears only after the note is written to the `@cache/core` outbox (`localStorage cn_outbox_v1`). `useNotes.createNote` is queue-first (client UUID as the row id → idempotent sync; `23505` = already-synced), resolving on local durability and rejecting only if the local write fails (then the editor keeps the text). Queued notes show a `[queued]` chip + a `· N queued` header segment; `flushOutbox` runs on reconnect + app load. `/dir` feedback: an unknown category files the note verbatim to buffer with a warning; a body-less `/dir` hints instead of a silent no-op.
 - **Delete is non-destructive** — `NoteCard` `rm` calls `archiveNote` (soft delete, sets `archived_at`) and fires a toast with an `[undo]` (`unarchiveNote`). Permanent delete (`deleteNote`) lives only in `ArchiveView`.
-- **Pin** — `NoteCard` `pin` chip toggles `note.pinned`; `useNotes` sorts pinned-first (accent left-bar marks them).
+- **Note card layout** — note text dominates (14px, clamped to 4 lines with a `▾` expand). The meta row holds compact time (`5h ago`, `lib/shortTime.ts`), always-visible status badges that also undo their state (overdue/ping → ping panel, `⚑ flagged` → unflag, `★` → unpin, `[queued]`, `⊘ no resurface`), then actions: buffer cards promote `mv →` (opens `CategoryPicker`); secondary actions (ping, `mv →` off-buffer, `⚑ flag`, `★ pin`, `rm`) fade in on hover/focus-within for fine pointers and sit behind a `⋯` tray on touch. Under `(pointer: coarse)` every target is ≥ `--tap-min` with a padded hit area. Edit mode has one row: hint (desktop) + `[cancel] [save]`.
+- **Pin** — `NoteCard` `★ pin` toggles `note.pinned`; `useNotes` sorts pinned-first (accent left-bar marks them).
 - **Reminders (ping)** — presets `+1h/+3h/+1d/+3d/+1w`, `custom` (`datetime-local`), and `snooze` on overdue — all reachable from a default card, not just edit mode. Overdue count shows red in the `AppHeader`.
 - **Search → open note** — clicking a `grep` result (or recent item) navigates to its home view via `App.handleOpenNote`, opens the category, scrolls to and pulse-highlights the card (`focusNoteId` + `focusNonce`).
 - **Command palette** — `Ctrl/⌘-K` (`CommandPalette`); **slash-routing** — `/dir …` in `CaptureBar` files a note straight into a category; **global keys** — `1-4` views, `/` search, `n` new note, `?` cheatsheet (guarded against firing inside inputs).
@@ -259,7 +261,7 @@ CSS custom properties live in `index.css`: `--bg`, `--surface`, `--surface-deep`
 - **`ErrorBoundary`** — React class component wrapping the entire app in `main.tsx`. Shows a terminal-aesthetic crash screen (`~/cache $ FATAL ERROR` + `[reload]` button) instead of a blank page. `componentDidCatch` reports the crash via `lib/telemetry`.
 - **`lib/telemetry.ts`** — provider-agnostic error telemetry. `initTelemetry()` (called in `main.tsx`) captures uncaught errors + unhandled rejections; `reportError()` dedupes + rate-limits and POSTs JSON to `VITE_ERROR_REPORT_URL` (inert if unset; logs in dev). `createTelemetry({ endpoint, send })` factory keeps it testable. Never throws.
 - **`Toast` / `useToast`** — React context notification system. `useToast()` returns `{ showToast(type, message, options?) }` where `options` = `{ actionLabel?, onAction?, duration? }` (powers the `[undo]` on archive). Types: `error` (red), `ok` (green), `warn` (amber). Auto-dismisses after 4s, stacks up to 3. Replaces all `alert()` and `console.error()` calls.
-- **`NoteCard` editing** — Click note text → green-bordered textarea; Enter or blur saves, Escape cancels. `onUpdate(noteId, { text })` called only when text changes.
+- **`NoteCard` editing** — Click note text → green-bordered auto-growing textarea; Enter, `[save]` or blur saves; Escape or `[cancel]` cancels (blur onto `[cancel]`/`[save]` is ignored so Android taps don't double-act). `onUpdate(noteId, { text })` called only when text changes.
 - **Inline confirmations** — NoteCard `rm` and BoardView category delete both use inline confirm state instead of `window.confirm()`.
 
 ### Testing Patterns
