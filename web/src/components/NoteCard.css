@@ -1,4 +1,6 @@
 .note-card {
+  /* --red sits right at 4.5:1 on --surface; lift it a touch for small card text. */
+  --card-red: color-mix(in srgb, var(--red) 85%, var(--text));
   position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -212,14 +214,14 @@
 }
 
 .note-card__chip--rm {
-  color: color-mix(in srgb, var(--red) 80%, var(--text-muted));
+  color: var(--card-red);
   border-color: color-mix(in srgb, var(--red) 25%, transparent);
 }
 
 .note-card__chip--rm:hover,
 .note-card__chip--danger,
 .note-card__chip--danger:hover {
-  color: var(--red);
+  color: var(--card-red);
   border-color: color-mix(in srgb, var(--red) 50%, transparent);
 }
 
@@ -251,7 +253,7 @@
 
 .note-card__badge--overdue,
 .note-card__badge--overdue:hover {
-  color: var(--red);
+  color: var(--card-red);
   border-color: color-mix(in srgb, var(--red) 35%, transparent);
 }
 
@@ -323,7 +325,7 @@
 }
 
 .note-card__confirm-label {
-  color: var(--red);
+  color: var(--card-red);
   font-size: var(--fs-sm, 12px);
 }
 
