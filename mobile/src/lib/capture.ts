@@ -1,4 +1,4 @@
-import type { Category } from '@cache/core';
+import { parseSlashRoute, type Category } from '@cache/core';
 
 export type CaptureResolve =
   | { ok: true; text: string; categoryId?: string; warning?: string }
@@ -10,8 +10,8 @@ export type CaptureResolve =
  * Saving a thought files it to the buffer (or an explicit category) and never
  * arms reviews, reminders, or todo/work workflows — those stay opt-in elsewhere.
  *
- * Slash-routing matches web CaptureBar:
- *  - `/dir body` → that category
+ * Slash-routing matches web CaptureBar (both use `parseSlashRoute` from core):
+ *  - `/dir body` → that category (multi-word names and slugs: `/date ideas`, `/date-ideas`)
  *  - `/dir` with no body → hint, don't commit
  *  - unknown `/dir` → file verbatim to buffer
  */
@@ -23,21 +23,19 @@ export function resolveCaptureInput(
   const trimmed = raw.trim();
   if (!trimmed) return { ok: false, hint: 'type a note first' };
 
-  const m = trimmed.match(/^\/(\S+)(?:\s+([\s\S]*))?$/);
-  if (m) {
-    const cat = categories.find(c => c.name.toLowerCase() === m[1].toLowerCase());
-    if (cat) {
-      const routed = (m[2] ?? '').trim();
-      if (!routed) {
-        return { ok: false, hint: `add a note after /${cat.name.toLowerCase()}` };
-      }
-      return { ok: true, text: routed, categoryId: cat.id };
+  const route = parseSlashRoute(trimmed, categories);
+  if (route.kind === 'match') {
+    if (!route.body) {
+      return { ok: false, hint: `add a note after /${route.category.name.toLowerCase()}` };
     }
+    return { ok: true, text: route.body, categoryId: route.category.id };
+  }
+  if (route.kind === 'unknown') {
     return {
       ok: true,
       text: trimmed,
       categoryId: undefined,
-      warning: `no category '${m[1]}' — filed to buffer`,
+      warning: `no category '${route.token}' — filed to buffer`,
     };
   }
 

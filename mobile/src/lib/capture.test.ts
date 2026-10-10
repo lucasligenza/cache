@@ -50,6 +50,18 @@ describe('resolveCaptureInput', () => {
       warning: "no category 'todo' — filed to buffer",
     });
   });
+
+  it('routes multi-word /dir by name or slug, preferring the longest match', () => {
+    const MULTI: Category[] = [
+      ...CATS,
+      { id: 'c2', name: 'Date', color: '#BF5FFF', created_at: '2026-01-01T00:00:00Z' },
+      { id: 'c3', name: 'Date Ideas', color: '#BF5FFF', created_at: '2026-01-01T00:00:00Z' },
+    ];
+    expect(resolveCaptureInput('/date ideas picnic', MULTI, null)).toEqual({ ok: true, text: 'picnic', categoryId: 'c3' });
+    expect(resolveCaptureInput('/date-ideas picnic', MULTI, null)).toEqual({ ok: true, text: 'picnic', categoryId: 'c3' });
+    expect(resolveCaptureInput('/date night out', MULTI, null)).toEqual({ ok: true, text: 'night out', categoryId: 'c2' });
+    expect(resolveCaptureInput('/date ideas', MULTI, null)).toEqual({ ok: false, hint: 'add a note after /date ideas' });
+  });
 });
 
 describe('composerBottomInset', () => {
