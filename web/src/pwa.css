@@ -1,6 +1,7 @@
 /*
- * Phone / installed-app platform behaviour. Loaded after index.css; holds no
- * design tokens. Most of this is about not feeling like a web page on iOS.
+ * Phone / installed-app platform behaviour. Imported last in main.tsx so it
+ * follows component CSS; holds no design tokens. Most of this is about not
+ * feeling like a web page on iOS.
  */
 
 html {
