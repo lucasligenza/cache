@@ -1,9 +1,10 @@
 /// <reference lib="webworker" />
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
-import { CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
+import { CacheFirst } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
+import { clientsClaim } from 'workbox-core';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -11,6 +12,12 @@ declare const self: ServiceWorkerGlobalScope;
 interface SyncEvent extends ExtendableEvent {
   readonly tag: string;
 }
+
+// Take over immediately on install/update. iOS home-screen apps almost never
+// close every client, so a waiting worker would otherwise never activate.
+// The page reloads itself onto the new build when it's safe (lib/pwaUpdate.ts).
+self.skipWaiting();
+clientsClaim();
 
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
@@ -20,18 +27,14 @@ precacheAndRoute(self.__WB_MANIFEST);
 // fetches, not navigations, so they fall through to the network — never cached).
 registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')));
 
-// Google Fonts: stylesheet revalidates in the background; the font files (which
-// never change) are cached hard so the JetBrains Mono terminal look survives offline.
+// Self-hosted font subsets that aren't precached (only Latin is) — fetched on
+// demand by unicode-range, then kept; hashed filenames never change.
 registerRoute(
-  ({ url }) => url.origin === 'https://fonts.googleapis.com',
-  new StaleWhileRevalidate({ cacheName: 'google-fonts-stylesheets' })
-);
-registerRoute(
-  ({ url }) => url.origin === 'https://fonts.gstatic.com',
+  ({ url, request }) => url.origin === self.location.origin && request.destination === 'font',
   new CacheFirst({
-    cacheName: 'google-fonts-webfonts',
+    cacheName: 'fonts',
     plugins: [
-      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new CacheableResponsePlugin({ statuses: [200] }),
       new ExpirationPlugin({ maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 }),
     ],
   })
@@ -39,10 +42,20 @@ registerRoute(
 // NOTE: Supabase REST/auth responses are intentionally NOT cached (authed,
 // privacy-sensitive, staleness risk). Leave them to always hit the network.
 
+function readPush(event: PushEvent): { title?: string; body?: string } {
+  try {
+    return (event.data?.json() as { title?: string; body?: string } | null) ?? {};
+  } catch {
+    return { body: event.data?.text() };
+  }
+}
+
+// Every push MUST show a notification: WebKit revokes the subscription after
+// pushes that don't, so a malformed payload can't be allowed to throw first.
 self.addEventListener('push', (event: PushEvent) => {
-  const data = event.data?.json() as { title?: string; body?: string } | null;
-  const title = data?.title ?? 'cache reminder';
-  const body = data?.body ?? 'you have a note reminder';
+  const data = readPush(event);
+  const title = data.title || 'cache reminder';
+  const body = data.body || 'you have a note reminder';
 
   event.waitUntil(
     self.registration.showNotification(title, {
