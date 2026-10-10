@@ -5,7 +5,7 @@ const { supabaseMock } = vi.hoisted(() => ({
 }));
 vi.mock('./supabase', () => ({ supabase: supabaseMock }));
 
-import { subscribeToPush, unsubscribeFromPush, getPushStatus } from './push';
+import { subscribeToPush, unsubscribeFromPush, getPushStatus, SW_READY_TIMEOUT_MS } from './push';
 
 // Thennable chain for supabase.from('push_subscriptions').delete().eq(...)
 function makeFrom(result: { error: unknown } = { error: null }) {
@@ -16,6 +16,10 @@ function makeFrom(result: { error: unknown } = { error: null }) {
 }
 
 const pushManager = { subscribe: vi.fn(), getSubscription: vi.fn() };
+
+function setServiceWorkerReady(ready: Promise<unknown>) {
+  Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: { ready } });
+}
 
 function setSupported(supported: boolean) {
   const nav = navigator as unknown as { serviceWorker?: unknown };
@@ -110,6 +114,34 @@ describe('push', () => {
     const res = await unsubscribeFromPush();
     expect(res.error).toBeNull();
     expect(supabaseMock.from).not.toHaveBeenCalled();
+  });
+
+  describe('when no service worker ever registers', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      setServiceWorkerReady(new Promise(() => {}));
+    });
+    afterEach(() => { vi.useRealTimers(); });
+
+    it('getPushStatus falls back to unavailable instead of hanging', async () => {
+      const status = getPushStatus();
+      await vi.advanceTimersByTimeAsync(SW_READY_TIMEOUT_MS);
+      await expect(status).resolves.toBe('unavailable');
+    });
+
+    it('subscribeToPush reports unavailable without writing a row', async () => {
+      const res = subscribeToPush();
+      await vi.advanceTimersByTimeAsync(SW_READY_TIMEOUT_MS);
+      expect((await res).error).toMatch(/unavailable/i);
+      expect(supabaseMock.rpc).not.toHaveBeenCalled();
+    });
+
+    it('unsubscribeFromPush resolves cleanly', async () => {
+      const res = unsubscribeFromPush();
+      await vi.advanceTimersByTimeAsync(SW_READY_TIMEOUT_MS);
+      expect((await res).error).toBeNull();
+      expect(supabaseMock.from).not.toHaveBeenCalled();
+    });
   });
 
   it('getPushStatus reflects the current state', async () => {

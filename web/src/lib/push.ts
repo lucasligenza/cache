@@ -21,6 +21,22 @@ function isPushSupported(): boolean {
   return 'serviceWorker' in navigator && 'PushManager' in window;
 }
 
+export const SW_READY_TIMEOUT_MS = 3000;
+
+// `serviceWorker.ready` never settles when no service worker registers (dev
+// without the SW, a failed registration, some private modes), so cap the wait.
+async function readyRegistration(): Promise<ServiceWorkerRegistration | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>(resolve => {
+    timer = setTimeout(() => resolve(null), SW_READY_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([navigator.serviceWorker.ready, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function subscribeToPush(): Promise<{ error: string | null }> {
   const vapidKey = vapidPublicKey();
   if (!vapidKey) {
@@ -36,7 +52,8 @@ export async function subscribeToPush(): Promise<{ error: string | null }> {
   }
 
   try {
-    const reg = await navigator.serviceWorker.ready;
+    const reg = await readyRegistration();
+    if (!reg) return { error: 'notifications are unavailable right now' };
     const subscription = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidKey) as unknown as ArrayBuffer,
@@ -67,7 +84,8 @@ export async function subscribeToPush(): Promise<{ error: string | null }> {
 export async function unsubscribeFromPush(): Promise<{ error: string | null }> {
   if (!isPushSupported()) return { error: null };
   try {
-    const reg = await navigator.serviceWorker.ready;
+    const reg = await readyRegistration();
+    if (!reg) return { error: null };
     const subscription = await reg.pushManager.getSubscription();
     if (!subscription) return { error: null };
 
@@ -86,7 +104,8 @@ export async function getPushStatus(): Promise<PushStatus> {
   if (!vapidPublicKey()) return 'unavailable';
   if (!isPushSupported()) return 'unsupported';
   if (Notification.permission === 'denied') return 'denied';
-  const reg = await navigator.serviceWorker.ready;
+  const reg = await readyRegistration();
+  if (!reg) return 'unavailable';
   const subscription = await reg.pushManager.getSubscription();
   return subscription ? 'subscribed' : 'unsubscribed';
 }
