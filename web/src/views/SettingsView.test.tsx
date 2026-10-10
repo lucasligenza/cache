@@ -17,15 +17,130 @@ function props(overrides: Partial<Parameters<typeof SettingsView>[0]> = {}) {
     onOpenArchive: vi.fn(),
     onExportJson: vi.fn(),
     onExportMarkdown: vi.fn(),
+    onDeleteAccount: vi.fn().mockResolvedValue({ error: null }),
     ...overrides,
   };
 }
 
 describe('SettingsView', () => {
-  it('tells guests they lose access on sign-out (not that notes are cleared)', () => {
+  it('warns guests their notes cannot be recovered after logout', () => {
     render(<SettingsView {...props({ isGuest: true })} />);
-    expect(screen.getByText(/sign out and you lose access to these notes/i)).toBeInTheDocument();
-    expect(screen.queryByText(/clears these notes/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/can't be recovered after logout/i)).toBeInTheDocument();
+  });
+
+  it('tells guests to create an account before adding the app to the home screen', () => {
+    const { rerender } = render(<SettingsView {...props({ isGuest: true })} />);
+    expect(screen.getByText(/guest notes stay in the browser they were made in/)).toBeInTheDocument();
+    expect(screen.getByText(/create an account before adding the app to the home screen/)).toBeInTheDocument();
+
+    rerender(<SettingsView {...props({ userEmail: 'a@b.com' })} />);
+    expect(screen.queryByText(/home screen/)).not.toBeInTheDocument();
+  });
+
+  it('logs a real account out in one click', async () => {
+    const user = userEvent.setup();
+    const onSignOut = vi.fn();
+    render(<SettingsView {...props({ userEmail: 'a@b.com', onSignOut })} />);
+    await user.click(screen.getByRole('button', { name: '$ logout' }));
+    expect(onSignOut).toHaveBeenCalledTimes(1);
+  });
+
+  describe('guest logout guard', () => {
+    const guestProps = (overrides = {}) =>
+      props({ isGuest: true, noteCount: 12, pendingCount: 2, onUpgradeAccount: vi.fn(), ...overrides });
+
+    it('asks before erasing, with the note count', async () => {
+      const user = userEvent.setup();
+      const onSignOut = vi.fn();
+      render(<SettingsView {...guestProps({ onSignOut })} />);
+
+      await user.click(screen.getByRole('button', { name: '$ logout' }));
+
+      expect(onSignOut).not.toHaveBeenCalled();
+      expect(screen.getByText(/logout will erase 12 notes \(2 not yet synced\)/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /\$ create account/ })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '[create account first]' })).toHaveFocus();
+    });
+
+    it('erases and logs out on the second step', async () => {
+      const user = userEvent.setup();
+      const onSignOut = vi.fn().mockResolvedValue(undefined);
+      render(<SettingsView {...guestProps({ onSignOut })} />);
+      await user.click(screen.getByRole('button', { name: '$ logout' }));
+      await user.click(screen.getByRole('button', { name: '[erase & logout]' }));
+      expect(onSignOut).toHaveBeenCalledTimes(1);
+    });
+
+    it('offers export without leaving the guard', async () => {
+      const user = userEvent.setup();
+      const onExportJson = vi.fn();
+      render(<SettingsView {...guestProps({ onExportJson })} />);
+      await user.click(screen.getByRole('button', { name: '$ logout' }));
+      await user.click(screen.getByRole('button', { name: '[export json]' }));
+      expect(onExportJson).toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: '[exported ✓]' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '[erase & logout]' })).toBeInTheDocument();
+    });
+
+    it('jumps to the create-account form', async () => {
+      const user = userEvent.setup();
+      render(<SettingsView {...guestProps()} />);
+      await user.click(screen.getByRole('button', { name: '$ logout' }));
+      await user.click(screen.getByRole('button', { name: '[create account first]' }));
+      expect(screen.queryByRole('button', { name: '[erase & logout]' })).not.toBeInTheDocument();
+      expect(screen.getByLabelText('email')).toHaveFocus();
+    });
+
+    it('cancels with Escape and returns focus to logout', async () => {
+      const user = userEvent.setup();
+      render(<SettingsView {...guestProps()} />);
+      await user.click(screen.getByRole('button', { name: '$ logout' }));
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('button', { name: '[erase & logout]' })).not.toBeInTheDocument();
+      await vi.waitFor(() => expect(screen.getByRole('button', { name: '$ logout' })).toHaveFocus());
+    });
+
+    it('counts trashed notes in what gets erased', async () => {
+      const user = userEvent.setup();
+      render(<SettingsView {...guestProps({ noteCount: 14, archivedCount: 2, pendingCount: 0 })} />);
+      await user.click(screen.getByRole('button', { name: '$ logout' }));
+      expect(screen.getByText(/logout will erase 16 notes \(2 in trash\)/)).toBeInTheDocument();
+    });
+
+    it('still confirms for an empty guest session', async () => {
+      const user = userEvent.setup();
+      render(<SettingsView {...guestProps({ noteCount: 0, pendingCount: 0 })} />);
+      await user.click(screen.getByRole('button', { name: '$ logout' }));
+      expect(screen.getByText(/logout ends this guest session/)).toBeInTheDocument();
+    });
+  });
+
+  it('labels the guest-upgrade inputs', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView {...props({ isGuest: true, onUpgradeAccount: vi.fn() })} />);
+    await user.click(screen.getByRole('button', { name: /create account/i }));
+    expect(screen.getByLabelText('email')).toHaveAttribute('type', 'email');
+    expect(screen.getByLabelText('password')).toHaveAttribute('type', 'password');
+  });
+
+  it('opens the upgrade form when arriving from a nudge', () => {
+    render(<SettingsView {...props({ isGuest: true, onUpgradeAccount: vi.fn(), initialUpgradeOpen: true })} />);
+    expect(screen.getByLabelText('email')).toBeInTheDocument();
+  });
+
+  it('shows whether guest storage is persistent', () => {
+    const { rerender } = render(<SettingsView {...props({ isGuest: true, storageState: 'persistent' })} />);
+    expect(screen.getByText('persistent')).toBeInTheDocument();
+    rerender(<SettingsView {...props({ isGuest: true, storageState: 'best-effort' })} />);
+    expect(screen.getByText(/browser may clear it/)).toBeInTheDocument();
+  });
+
+  it('hides notifications when push is not configured', () => {
+    const { rerender } = render(<SettingsView {...props()} />);
+    expect(screen.getByText('notifications')).toBeInTheDocument();
+    rerender(<SettingsView {...props({ pushConfigured: false })} />);
+    expect(screen.queryByText('notifications')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /enable notifications/i })).not.toBeInTheDocument();
   });
 
   it('shows the confirm-your-email message when an upgrade is pending', async () => {
@@ -43,5 +158,54 @@ describe('SettingsView', () => {
 
     expect(onUpgradeAccount).toHaveBeenCalledWith('real@b.com', 'password123');
     expect(await screen.findByText(/check your email to confirm/i)).toBeInTheDocument();
+  });
+
+  describe('delete account', () => {
+    it('requires typing delete before it runs', async () => {
+      const user = userEvent.setup();
+      const onDeleteAccount = vi.fn().mockResolvedValue({ error: null });
+      render(<SettingsView {...props({ userEmail: 'a@b.com', noteCount: 4, onDeleteAccount })} />);
+
+      await user.click(screen.getByRole('button', { name: '$ delete account' }));
+      expect(screen.getByText(/permanently deletes your account, 4 notes/)).toBeInTheDocument();
+      const confirm = screen.getByRole('button', { name: '[delete forever]' });
+      expect(confirm).toBeDisabled();
+      expect(onDeleteAccount).not.toHaveBeenCalled();
+
+      await user.type(screen.getByLabelText('confirm'), 'DELETE');
+      expect(confirm).toBeDisabled();
+      await user.clear(screen.getByLabelText('confirm'));
+      await user.type(screen.getByLabelText('confirm'), 'delete');
+      expect(confirm).toBeEnabled();
+      await user.click(confirm);
+      expect(onDeleteAccount).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows the server error and keeps the form open', async () => {
+      const user = userEvent.setup();
+      const onDeleteAccount = vi.fn().mockResolvedValue({ error: 'could not delete your notes' });
+      render(<SettingsView {...props({ onDeleteAccount })} />);
+      await user.click(screen.getByRole('button', { name: '$ delete account' }));
+      await user.type(screen.getByLabelText('confirm'), 'delete');
+      await user.click(screen.getByRole('button', { name: '[delete forever]' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('could not delete your notes');
+      expect(screen.getByLabelText('confirm')).toBeInTheDocument();
+    });
+
+    it('cancels with Escape and returns focus to delete account', async () => {
+      const user = userEvent.setup();
+      render(<SettingsView {...props()} />);
+      await user.click(screen.getByRole('button', { name: '$ delete account' }));
+      await user.keyboard('{Escape}');
+      expect(screen.queryByLabelText('confirm')).not.toBeInTheDocument();
+      await vi.waitFor(() => expect(screen.getByRole('button', { name: '$ delete account' })).toHaveFocus());
+    });
+
+    it('links the draft privacy policy and terms', () => {
+      render(<SettingsView {...props()} />);
+      expect(screen.getByRole('link', { name: 'privacy' })).toHaveAttribute('href', '/privacy.html');
+      expect(screen.getByRole('link', { name: 'terms' })).toHaveAttribute('href', '/terms.html');
+      expect(screen.getByText('draft')).toBeInTheDocument();
+    });
   });
 });

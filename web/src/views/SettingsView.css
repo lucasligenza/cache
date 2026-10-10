@@ -168,3 +168,109 @@
   display: flex;
   gap: 12px;
 }
+
+.settings-row__warn {
+  color: var(--amber);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.settings-row__value--ok {
+  color: var(--accent);
+}
+
+.settings-btn--accent {
+  color: var(--accent);
+  border-color: var(--accent-glow);
+}
+
+.settings-btn--accent:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-glow-soft);
+}
+
+.settings-btn--danger {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 50%, transparent);
+}
+
+.settings-btn--danger:hover {
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+}
+
+.settings-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.settings-upgrade__label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Guest logout guard */
+.settings-guard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent);
+  border-left: 2px solid var(--amber);
+  background: color-mix(in srgb, var(--amber) 6%, transparent);
+  border-radius: 3px;
+}
+
+.settings-guard__msg {
+  color: var(--amber);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.settings-guard__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settings-danger {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 320px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--red) 45%, transparent);
+  border-left: 2px solid var(--red);
+  background: color-mix(in srgb, var(--red) 6%, transparent);
+  border-radius: 3px;
+}
+
+.settings-danger__msg {
+  margin: 0;
+  color: var(--red);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.settings-danger__error {
+  margin: 0;
+  color: var(--red);
+  font-size: 12px;
+}
+
+.settings-danger .settings-upgrade__input {
+  width: 100%;
+}
+
+.settings-legal {
+  color: var(--accent);
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.settings-legal:hover {
+  text-shadow: 0 0 6px var(--accent-glow);
+}

@@ -1,4 +1,5 @@
 /// <reference lib="webworker" />
+import { legalNavigationDenylist } from './lib/legalRoutes';
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
 import { CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
@@ -18,7 +19,10 @@ precacheAndRoute(self.__WB_MANIFEST);
 // Offline app-shell: serve the precached index.html for SPA navigations so a
 // reload while offline still boots the app (Supabase API calls are cross-origin
 // fetches, not navigations, so they fall through to the network — never cached).
-registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')));
+// Legal pages are real HTML files. Don't rewrite those navigations to the app shell.
+registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html'), {
+  denylist: legalNavigationDenylist(),
+}));
 
 // Google Fonts: stylesheet revalidates in the background; the font files (which
 // never change) are cached hard so the JetBrains Mono terminal look survives offline.

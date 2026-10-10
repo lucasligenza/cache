@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>privacy — cache (draft)</title>
+    <link rel="stylesheet" href="/legal.css" />
+  </head>
+  <body>
+    <main class="legal">
+      <p class="legal__prompt">~/cache $ cat <span>privacy</span></p>
+      <p class="legal__draft" role="note">
+        DRAFT — not in effect. Replace <code>CONTACT_EMAIL</code> and approve this wording before publishing. Remove the noindex tag when it goes live.
+      </p>
+
+      <h1>Privacy policy</h1>
+      <p>Draft dated 10 October 2026. This describes the CacheNotes website as it works today. It is not a finished policy.</p>
+
+      <h2>What the app is</h2>
+      <p>CacheNotes (“cache”) is a note organizer. You write notes, file them in directories, and can ask the app to remind you. The same account is stored in one Supabase project, so a note saved on the website can show up on another signed-in device.</p>
+
+      <h2>What we store</h2>
+      <ul>
+        <li><strong>Account.</strong> An email address and a password hash, held by Supabase Auth, or an anonymous guest id if you choose “continue as guest”. We never see your password. A guest is still a real account on the server.</li>
+        <li><strong>Notes.</strong> The text, which directory it is in, color, pin, review flag, reminder time, trash time, and timestamps.</li>
+        <li><strong>Directories.</strong> The name and color.</li>
+        <li><strong>Reminders.</strong> If you turn notifications on, we store a web-push subscription for that browser: an endpoint URL and two keys. A due reminder sends the first 100 characters of the note.</li>
+        <li><strong>This browser.</strong> Notes that have not synced yet sit in local storage (<code>cn_outbox_v1</code>). Theme, accent color, the first-run flag, and a guest “create an account” nudge are stored there too. The login session is stored by the Supabase client. None of that is sent anywhere except to your own account when a note syncs.</li>
+      </ul>
+
+      <h2>Who handles it</h2>
+      <ul>
+        <li><strong>Supabase</strong> (on Amazon Web Services) holds the database and the login. Row-level security limits each account to its own notes, directories, and push subscriptions. Reminder sends run as a Supabase edge function, which reads due notes and the matching push subscription.</li>
+        <li><strong>Vercel</strong> hosts the website. Serving a page produces ordinary host logs: IP address, browser, and the URL requested. Note text is not in those page requests.</li>
+        <li><strong>Web push.</strong> The reminder is delivered by your browser’s push service — Google, Apple, or Mozilla, depending on the browser. That service sees the notification payload (title plus up to 100 characters of the note) and the subscription endpoint.</li>
+        <li><strong>Typeface.</strong> JetBrains Mono ships with the website and is served from the same host as the app.</li>
+        <li><strong>Error reports, only if configured.</strong> Crashes can be posted to a collector URL (<code>VITE_ERROR_REPORT_URL</code>). That collector may be Sentry or something else. A report contains the error message, stack trace, page URL, browser type, a release id, and the time. It does not include your notes or your email. If the URL is unset, nothing is sent.</li>
+      </ul>
+
+      <h2>The iOS app</h2>
+      <p>The iOS app uses the same Supabase account and database. It can also send a note’s text to Anthropic to suggest a directory, and only when that build has an API key and you trigger the sort. The website does not do this. Confirm that sentence before publishing if the iOS build changes.</p>
+
+      <h2>How long</h2>
+      <p>Notes stay until you delete them, empty the trash, or delete the account. Deleting the account removes your notes, directories, and push subscriptions on the server, then deletes the login. This browser’s unsynced queue for that account is cleared as part of the same action. Another device can still have a leftover queue until it is opened and signed out.</p>
+      <p>Guest logout ends the session in this browser. The server copy of a guest account remains until you delete the account.</p>
+
+      <h2>Your choices</h2>
+      <ul>
+        <li>Export JSON or Markdown from Settings → data, before you delete anything you might want.</li>
+        <li>Turn notifications off in Settings. That drops this browser’s push subscription.</li>
+        <li>Delete the account in Settings. Type <code>delete</code> to confirm. It is permanent.</li>
+      </ul>
+
+      <h2>Contact</h2>
+      <p><code>CONTACT_EMAIL</code></p>
+
+      <nav class="legal__nav">
+        <a href="/terms.html">terms</a>
+        <a href="/">back to cache</a>
+      </nav>
+    </main>
+  </body>
+</html>

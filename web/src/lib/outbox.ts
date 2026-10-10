@@ -7,6 +7,7 @@ export {
   readOutbox,
   writeOutbox,
   addToOutbox,
+  clearOutboxFor,
   removeFromOutbox,
   updateOutboxItem,
   newId,
