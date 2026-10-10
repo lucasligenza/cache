@@ -19,7 +19,7 @@
 
 .capture-bar__prompt {
   color: var(--text-dim);
-  font-size: 14px;
+  font-size: var(--fs-md);
   line-height: 1.5;
   white-space: nowrap;
   flex-shrink: 0;
@@ -40,7 +40,7 @@
   outline: none;
   color: var(--text);
   font-family: var(--font);
-  font-size: 16px;
+  font-size: var(--fs-lg);
   line-height: 1.5;
   caret-color: var(--accent);
   resize: none;
@@ -55,7 +55,7 @@
 
 .capture-bar__cached {
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   align-self: center;
   white-space: nowrap;
   flex-shrink: 0;
@@ -83,7 +83,7 @@
 }
 
 .capture-bar__cat-btn {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   border: 1px solid var(--border);
   padding: 2px 10px;
   border-radius: 2px;
@@ -103,7 +103,7 @@
 
 .capture-bar__hint {
   color: var(--text-dim);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   margin-left: auto;
   transition: color 0.2s;
 }
@@ -130,7 +130,7 @@
   gap: 8px;
   padding: 8px 12px;
   cursor: pointer;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   border: none;
   background: none;
   font-family: var(--font);
@@ -162,7 +162,7 @@
   border: 1px solid var(--accent);
   color: var(--accent);
   font-family: var(--font);
-  font-size: 14px;
+  font-size: var(--fs-md);
   padding: 4px 10px;
   min-height: 44px;
   min-width: 44px;

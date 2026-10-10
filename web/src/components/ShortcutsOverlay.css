@@ -30,13 +30,13 @@
 
 .shortcuts-panel__title {
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   text-shadow: 0 0 8px var(--accent-glow);
 }
 
 .shortcuts-panel__close {
   color: var(--text-dim);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   border: 1px solid var(--border);
   border-radius: 2px;
   padding: 1px 5px;
@@ -58,7 +58,7 @@
 
 .shortcuts-panel__keys {
   color: var(--text);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-family: var(--font);
   background: var(--surface-deep);
   border: 1px solid var(--border);
@@ -71,5 +71,5 @@
 
 .shortcuts-panel__desc {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }

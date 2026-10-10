@@ -4,7 +4,7 @@
 
 .buffer-view__label {
   color: var(--text-dim);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   letter-spacing: 1.5px;
   text-transform: uppercase;
   margin-bottom: 16px;
@@ -17,11 +17,11 @@
 
 .buffer-view__empty-line {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--fs-md);
   margin-bottom: 8px;
 }
 
 .buffer-view__empty-hint {
   color: var(--text-dim);
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }

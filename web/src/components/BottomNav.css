@@ -45,28 +45,33 @@
 }
 
 .bottom-nav__icon {
-  font-size: 16px;
+  font-size: var(--fs-lg);
   line-height: 1;
   position: relative;
   display: inline-block;
 }
 
 .bottom-nav__label {
-  font-size: 10px;
+  font-size: var(--fs-xs);
   text-align: center;
+}
+
+/* Inset so the focus ring isn't clipped by the nav's edges. */
+.bottom-nav__tab:focus-visible {
+  outline-offset: -3px;
 }
 
 .bottom-nav__badge {
   position: absolute;
-  top: -4px;
-  right: -8px;
+  top: -6px;
+  right: -12px;
   background: var(--accent);
   color: var(--bg);
-  font-size: 9px;
+  font-size: var(--fs-xs);
   font-weight: bold;
-  min-width: 14px;
-  height: 14px;
-  border-radius: 7px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -85,5 +90,5 @@
 @keyframes badge-pulse {
   0%   { transform: scale(1); box-shadow: 0 0 0 0 var(--accent-glow); }
   40%  { transform: scale(1.5); box-shadow: 0 0 8px 2px var(--accent-glow); }
-  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 transparent; }
 }

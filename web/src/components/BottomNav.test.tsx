@@ -39,6 +39,13 @@ describe('BottomNav', () => {
     expect(screen.getByText('3')).toBeInTheDocument();
   });
 
+  it('includes badge counts in the tab accessible names', () => {
+    render(<BottomNav activeView="buffer" unsortedCount={6} reviewCount={2} onTabClick={vi.fn()} />);
+    expect(screen.getByRole('button', { name: /^buffer\s*, 6 unsorted$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^review\s*, 2 to review$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'board' })).toBeInTheDocument();
+  });
+
   it('does not render badges when counts are 0', () => {
     render(<BottomNav activeView="buffer" unsortedCount={0} reviewCount={0} onTabClick={vi.fn()} />);
     expect(screen.queryByText('0')).not.toBeInTheDocument();

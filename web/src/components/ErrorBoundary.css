@@ -1,0 +1,37 @@
+.crash-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+.crash-screen__title {
+  color: var(--red);
+}
+
+.crash-screen__msg {
+  color: var(--text-muted);
+}
+
+.crash-screen__reload {
+  margin-top: 16px;
+  min-height: var(--tap-min);
+  padding: 6px 16px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.crash-screen__reload:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}

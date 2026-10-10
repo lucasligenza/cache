@@ -25,6 +25,7 @@ import { ArchiveView } from './views/ArchiveView';
 import { ReviewView } from './views/ReviewView';
 import { buildReviewSet } from './lib/review';
 import { exportJson, exportMarkdown } from './lib/exporter';
+import { LIGHT_THEME_ENABLED } from './constants';
 import './App.css';
 
 export default function App() {
@@ -36,7 +37,7 @@ export default function App() {
   const [booted, setBooted] = useState(() => sessionStorage.getItem('cn_booted') === '1');
   const [activeView, setActiveView] = useState<ViewName>('buffer');
   const [theme, setTheme] = useState<'dark' | 'light'>(() =>
-    (localStorage.getItem('cn_theme') as 'dark' | 'light') || 'dark'
+    (LIGHT_THEME_ENABLED && (localStorage.getItem('cn_theme') as 'dark' | 'light')) || 'dark'
   );
   const [accent, setAccent] = useState<string>(() =>
     localStorage.getItem('cn_accent') || 'green'
@@ -174,7 +175,7 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('cn_theme', theme);
+    if (LIGHT_THEME_ENABLED) localStorage.setItem('cn_theme', theme);
   }, [theme]);
 
   useEffect(() => {
@@ -239,7 +240,9 @@ export default function App() {
       { id: 'go-review', label: 'go: review', hint: '4', run: () => navigate('review') },
       { id: 'go-settings', label: 'go: settings', hint: '⚙', run: () => navigate('settings') },
       { id: 'new-note', label: 'new note', hint: 'n', run: focusCapture },
-      { id: 'toggle-theme', label: `theme: switch to ${theme === 'dark' ? 'light' : 'dark'}`, run: () => setTheme(t => (t === 'dark' ? 'light' : 'dark')) },
+      ...(LIGHT_THEME_ENABLED
+        ? [{ id: 'toggle-theme', label: `theme: switch to ${theme === 'dark' ? 'light' : 'dark'}`, run: () => setTheme(t => (t === 'dark' ? 'light' : 'dark')) }]
+        : []),
       { id: 'open-archive', label: 'open: ~/.trash (archived notes)', run: handleOpenArchive },
       { id: 'shortcuts', label: 'show keyboard shortcuts', hint: '?', run: () => setShortcutsOpen(true) },
     ];
@@ -316,6 +319,13 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <a
+        className="skip-link"
+        href="#main"
+        onClick={e => { e.preventDefault(); document.getElementById('main')?.focus(); }}
+      >
+        skip to content
+      </a>
       <AppHeader
         totalNotes={notes.length}
         unsortedCount={unsortedNotes.length}
@@ -325,7 +335,7 @@ export default function App() {
         onOpenReview={() => navigate('review')}
         onOpenSettings={() => navigate('settings')}
       />
-      <div className="app-shell__content">
+      <main id="main" className="app-shell__content" tabIndex={-1}>
         {activeView === 'buffer' && (
           <BufferView
             notes={unsortedNotes}
@@ -422,9 +432,11 @@ export default function App() {
             onBack={() => navigate('settings')}
           />
         )}
-      </div>
+      </main>
       {activeView !== 'settings' && activeView !== 'archive' && (
-        <CaptureBar categories={categories} onCommit={handleCommit} />
+        <section className="app-shell__capture" aria-label="new note">
+          <CaptureBar categories={categories} onCommit={handleCommit} />
+        </section>
       )}
       <BottomNav
         activeView={activeView}
