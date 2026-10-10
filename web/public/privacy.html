@@ -34,7 +34,7 @@
         <li><strong>Supabase</strong> (on Amazon Web Services) holds the database and the login. Row-level security limits each account to its own notes, directories, and push subscriptions. Reminder sends run as a Supabase edge function, which reads due notes and the matching push subscription.</li>
         <li><strong>Vercel</strong> hosts the website. Serving a page produces ordinary host logs: IP address, browser, and the URL requested. Note text is not in those page requests.</li>
         <li><strong>Web push.</strong> The reminder is delivered by your browser’s push service — Google, Apple, or Mozilla, depending on the browser. That service sees the notification payload (title plus up to 100 characters of the note) and the subscription endpoint.</li>
-        <li><strong>Google Fonts.</strong> The app loads JetBrains Mono from <code>fonts.googleapis.com</code> and <code>fonts.gstatic.com</code>. Google receives your IP address when the font file is downloaded. These legal pages do not load that font.</li>
+        <li><strong>Typeface.</strong> JetBrains Mono ships with the website and is served from the same host as the app.</li>
         <li><strong>Error reports, only if configured.</strong> Crashes can be posted to a collector URL (<code>VITE_ERROR_REPORT_URL</code>). That collector may be Sentry or something else. A report contains the error message, stack trace, page URL, browser type, a release id, and the time. It does not include your notes or your email. If the URL is unset, nothing is sent.</li>
       </ul>
 

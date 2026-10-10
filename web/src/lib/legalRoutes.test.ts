@@ -32,6 +32,7 @@ describe('legal pages', () => {
     expect(privacy).toMatch(/Vercel/);
     expect(privacy).toMatch(/push/i);
     expect(privacy).toMatch(/Sentry/);
-    expect(privacy).toMatch(/Google Fonts/);
+    expect(privacy).toMatch(/JetBrains Mono ships with the website/);
+    expect(privacy).not.toMatch(/Google Fonts|fonts\.googleapis|fonts\.gstatic/);
   });
 });
