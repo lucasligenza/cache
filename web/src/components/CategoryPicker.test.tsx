@@ -3,6 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { CategoryPicker } from './CategoryPicker';
 import noteCardCss from './NoteCard.css?raw';
 import pickerCss from './CategoryPicker.css?raw';
+import noteCardTsx from './NoteCard.tsx?raw';
+import pickerTsx from './CategoryPicker.tsx?raw';
 import type { Category } from '../types';
 
 const now = new Date().toISOString();
@@ -107,7 +109,10 @@ describe('CategoryPicker', () => {
 });
 
 describe('note card styles', () => {
-  it.each([['NoteCard.css', noteCardCss], ['CategoryPicker.css', pickerCss]])(
+  it.each([
+    ['NoteCard.css', noteCardCss], ['CategoryPicker.css', pickerCss],
+    ['NoteCard.tsx', noteCardTsx], ['CategoryPicker.tsx', pickerTsx],
+  ])(
     '%s uses theme tokens only (no hardcoded hex/rgb)',
     (_name, css) => {
       expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
